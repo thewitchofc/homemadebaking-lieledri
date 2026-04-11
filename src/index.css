@@ -1,0 +1,207 @@
+@import 'tailwindcss';
+
+:root {
+  /** גובה שורת ה-header, ליישר עם .header (מובייל ~py-3 + שתי שורות מיתוג) */
+  --header-h: 80px;
+}
+
+@theme {
+  /**
+   * עברית: Rubik, קווים רכים ו„בלוניים” יותר מ־Assistant.
+   * אנגלית במיתוג: font-didone / בלוקים עם lang=en נשארים Playfair/Assistant לפי הקומפוננטה.
+   */
+  --font-display: 'Rubik', 'Assistant', 'Heebo', system-ui, sans-serif;
+  --font-hero: 'Rubik', 'Assistant', 'Heebo', system-ui, sans-serif;
+  --font-sans: 'Rubik', 'Assistant', 'Heebo', system-ui, sans-serif;
+  /** Homemade Baking, כתב מסולסל */
+  --font-script: 'Great Vibes', 'Brush Script MT', cursive;
+  /** Didone רך יותר, Playfair (דומה לבודוני בדוגמה, פחות קיצוני מ־Bodoni Moda) */
+  --font-didone: 'Playfair Display', 'Bodoni Moda', 'Didot', Georgia, serif;
+  --color-cream: #faf7f2;
+  --color-cream-dark: #f0ebe3;
+  --color-ink: #1c1410;
+  --color-ink-muted: #4a4039;
+  --color-gold: #b8956a;
+  --color-gold-deep: #8f6e3d;
+  --color-cocoa: #3d2c26;
+  --color-blush: #c4a69a;
+}
+
+@layer base {
+  /**
+   * אם ה-header יהיה position: fixed, הוסיפו offset לתוכן (ולא ל-sticky, אז יש כפילות):
+   * main.main, main.page { margin-top: var(--header-h) !important; }
+   */
+  html {
+    scroll-behavior: smooth;
+    /* מונע זום טקסט אגרסיבי ב־iOS שלא במודע */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    @apply bg-cream text-ink-muted font-sans text-base font-normal;
+  }
+  /** בלי padding/margin על עטיפות, מונע “דליפה” של תוכן לתוך אזור ה-hero במובייל */
+  .main,
+  .page,
+  .layout {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-gold-deep;
+  }
+  img {
+    background: transparent !important;
+  }
+}
+
+/**
+ * Hero: רקע cover, לפחות גובה viewport פחות header, מתרחב עם התוכן בלי לחתוך.
+ * תמונת הרקע ב-inline (HomePage: siteImages.heroBackdrop).
+ */
+@layer components {
+  .header {
+    box-sizing: border-box;
+    height: var(--header-h);
+  }
+
+  .hero {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: calc(100vh - var(--header-h));
+    min-height: calc(100dvh - var(--header-h));
+    display: flex;
+    flex-direction: column;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+
+  .hero > .overlay {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.75);
+    box-sizing: border-box;
+  }
+
+  .hero + section {
+    margin-top: 0 !important;
+  }
+
+  .hero > .overlay > .content {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 64rem;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    padding: 20px;
+  }
+
+  @media (max-width: 768px) {
+    .hero > .overlay {
+      padding: 20px;
+    }
+  }
+
+  /**
+   * כרטיס מוצר: תמונה contain בתוך תא flex ממורכז (יחס 4:3 בקומפוננטה).
+   */
+  .product-card > div:first-child {
+    background-color: #ffffff !important;
+  }
+
+  .product-card > div:first-child > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 0 !important;
+    padding: 10px !important;
+    box-sizing: border-box;
+  }
+
+  .product-card-media {
+    display: block;
+    width: auto !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center;
+    box-sizing: border-box;
+    background-color: #ffffff !important;
+  }
+
+}
+
+.product-card img.side-cake-fix {
+  transform-origin: center center;
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+/**
+ * react-datepicker — מותג (cocoa), הבחנה בין ימים זמינים לחסומים
+ */
+/* יום רגיל */
+.react-datepicker__day {
+  border-radius: 10px;
+}
+
+/* hover */
+.react-datepicker__day:hover {
+  background-color: #f3e9e6;
+}
+
+/* יום נבחר (אחרי hover כדי שלא יידרס) */
+.react-datepicker__day--selected,
+.react-datepicker__day--selected:hover {
+  background-color: #5a3e36; /* cocoa */
+  color: #fff;
+}
+
+/* ימים לא זמינים */
+.react-datepicker__day--disabled {
+  color: #cfcfcf;
+  cursor: not-allowed;
+  background-color: transparent;
+}
+
+.react-datepicker__day--disabled:hover {
+  color: #cfcfcf;
+  background-color: transparent;
+}
+
+/* היום הנוכחי */
+.react-datepicker__day--today {
+  border: 1px solid #5a3e36;
+}
+
+/* כותרת חודש */
+.react-datepicker__current-month {
+  font-weight: 600;
+}
+
+/* container */
+.react-datepicker {
+  direction: rtl;
+  border-radius: 16px;
+  border: 1px solid #eee;
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+/* header */
+.react-datepicker__header {
+  background-color: #fff;
+  border-bottom: 1px solid #eee;
+}

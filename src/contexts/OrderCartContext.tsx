@@ -1,0 +1,389 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Check } from 'lucide-react'
+import { gaEvent } from '../analytics'
+import {
+  ROLLS_PACK_SIZE,
+  buildCartWhatsAppMessage,
+  canSendCartWhatsAppOrder,
+  cartDisplayItemCount,
+  cartItemCount,
+  cartLineTotal,
+  catalogProducts,
+  crumbleCookiesQtyInCart,
+  getCartDisplayCount,
+  sumRollsDraft,
+  type CartState,
+} from '../catalog'
+
+type CartRootState = {
+  cart: CartState
+  /** יחידות מגולגלות בטיוטת מארז נוכחי (מקסימום 12, אז מיזוג לעגלה ואיפוס) */
+  rollsDraft: CartState
+}
+
+type Action = { type: 'SET_QTY'; productId: number; nextQty: number }
+
+function mergeRollsDraftIntoCart(cart: CartState, draft: CartState): CartState {
+  const next = { ...cart }
+  for (const p of catalogProducts) {
+    if (p.category !== 'rolls') continue
+    const q = draft[p.id]
+    if (q && q > 0) next[p.id] = (next[p.id] ?? 0) + q
+  }
+  return next
+}
+
+function sumDraft(draft: CartState): number {
+  return sumRollsDraft(draft, catalogProducts)
+}
+
+/** סך יחידות בכל שורות (עגלה + טיוטת מגולגלות) — עולה רק כשמוסיפים, לא במיזוג מארז לעגלה */
+function totalOrderUnits(root: CartRootState): number {
+  let sum = 0
+  for (const p of catalogProducts) {
+    sum += root.cart[p.id] ?? 0
+    sum += root.rollsDraft[p.id] ?? 0
+  }
+  return sum
+}
+
+function reducer(state: CartRootState, action: Action): CartRootState {
+  if (action.type !== 'SET_QTY') return state
+  const { productId, nextQty: raw } = action
+  const n = Math.max(0, Math.min(99, Math.floor(raw)))
+  const product = catalogProducts.find((p) => p.id === productId)
+  if (!product) return state
+
+  if (product.category !== 'rolls') {
+    const cart = { ...state.cart }
+    if (n === 0) delete cart[productId]
+    else cart[productId] = n
+    return { ...state, cart }
+  }
+
+  const cartQ = state.cart[productId] ?? 0
+  const draftQ = state.rollsDraft[productId] ?? 0
+  const total = cartQ + draftQ
+  if (n === total) return state
+
+  if (n > total) {
+    const add = n - total
+    const dSum = sumDraft(state.rollsDraft)
+    const room = ROLLS_PACK_SIZE - dSum
+    const applied = Math.min(add, room)
+    if (applied <= 0) return state
+    const newDraft = { ...state.rollsDraft }
+    const newDq = draftQ + applied
+    if (newDq <= 0) delete newDraft[productId]
+    else newDraft[productId] = newDq
+    const newSum = sumDraft(newDraft)
+    if (newSum === ROLLS_PACK_SIZE) {
+      return {
+        cart: mergeRollsDraftIntoCart(state.cart, newDraft),
+        rollsDraft: {},
+      }
+    }
+    return { ...state, rollsDraft: newDraft }
+  }
+
+  let rem = total - n
+  const newDraft = { ...state.rollsDraft }
+  const newCart = { ...state.cart }
+  const dq = draftQ
+  const cq = cartQ
+  if (dq >= rem) {
+    const nd = dq - rem
+    if (nd <= 0) delete newDraft[productId]
+    else newDraft[productId] = nd
+  } else {
+    rem -= dq
+    delete newDraft[productId]
+    const nc = cq - rem
+    if (nc <= 0) delete newCart[productId]
+    else newCart[productId] = nc
+  }
+  return { cart: newCart, rollsDraft: newDraft }
+}
+
+type OrderCartContextValue = {
+  cart: CartState
+  rollsDraft: CartState
+  rollsDraftTotal: number
+  setQty: (productId: number, nextQty: number) => void
+  /** ספירה לתצוגה: מגולגלות = מארזים (÷12), לא יחידות בודדות */
+  itemsInCart: number
+  /** עגלה צפה / סרגל תחתון — רק כשיש פריטים בעגלה (לא טיוטת מגולגלות לבד) */
+  showCartChrome: boolean
+  cartTotal: number
+  cartWaMessage: string
+  crumbleCookiesQty: number
+  canSendCartWhatsApp: boolean
+  /** טוסט קצר אחרי הוספת פריט (לפי עלייה ב־totalOrderUnits) */
+  addToCartToastOpen: boolean
+  dismissAddToCartToast: () => void
+}
+
+const OrderCartContext = createContext<OrderCartContextValue | null>(null)
+
+const initialRoot: CartRootState = { cart: {}, rollsDraft: {} }
+
+/** מפתח localStorage — גרסה בשם המפתח; ערך: { v, cart, rollsDraft } */
+const CART_STORAGE_KEY = 'cart_v1'
+
+const catalogIds = new Set(catalogProducts.map((p) => p.id))
+
+function sanitizeCartRecord(raw: unknown): CartState {
+  const out: CartState = {}
+  try {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return out
+    for (const [key, val] of Object.entries(raw as Record<string, unknown>)) {
+      const id = Number(key)
+      if (!Number.isInteger(id) || !catalogIds.has(id)) continue
+      if (typeof val !== 'number' || !Number.isFinite(val)) continue
+      const q = Math.floor(val)
+      if (q < 1 || q > 99) continue
+      out[id] = q
+    }
+  } catch {
+    return out
+  }
+  return out
+}
+
+function sanitizeRollsDraft(cart: CartState): CartState {
+  const out: CartState = {}
+  for (const idStr of Object.keys(cart)) {
+    const id = Number(idStr)
+    const p = catalogProducts.find((x) => x.id === id)
+    if (p?.category === 'rolls') {
+      const q = cart[id]
+      if (q !== undefined && q >= 1 && q <= 99) out[id] = q
+    }
+  }
+  return out
+}
+
+function readPersistedRoot(): CartRootState | null {
+  try {
+    if (typeof localStorage === 'undefined') return null
+    const json = localStorage.getItem(CART_STORAGE_KEY)
+    if (json === null || json === '') return null
+    const data = JSON.parse(json) as unknown
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) return null
+    const obj = data as Record<string, unknown>
+    if (obj.v !== 1) return null
+    const cart = sanitizeCartRecord(obj.cart)
+    const rollsDraft = sanitizeRollsDraft(sanitizeCartRecord(obj.rollsDraft))
+    return { cart, rollsDraft }
+  } catch {
+    return null
+  }
+}
+
+function persistRoot(root: CartRootState): void {
+  try {
+    if (typeof localStorage === 'undefined') return
+    const payload = JSON.stringify({
+      v: 1,
+      cart: root.cart,
+      rollsDraft: root.rollsDraft,
+    })
+    localStorage.setItem(CART_STORAGE_KEY, payload)
+  } catch {
+    /* quota / מצב פרטי */
+  }
+}
+
+function initOrderRoot(seed: CartRootState): CartRootState {
+  try {
+    const loaded = readPersistedRoot()
+    return loaded ?? seed
+  } catch {
+    return seed
+  }
+}
+
+export function OrderCartProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, initialRoot, initOrderRoot)
+  const [addToCartToastOpen, setAddToCartToastOpen] = useState(false)
+  const toastHideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  const dismissAddToCartToast = useCallback(() => {
+    if (toastHideTimerRef.current !== undefined) {
+      clearTimeout(toastHideTimerRef.current)
+      toastHideTimerRef.current = undefined
+    }
+    setAddToCartToastOpen(false)
+  }, [])
+
+  const scheduleAddToCartToastHide = useCallback(() => {
+    if (toastHideTimerRef.current !== undefined) clearTimeout(toastHideTimerRef.current)
+    toastHideTimerRef.current = setTimeout(() => {
+      setAddToCartToastOpen(false)
+      toastHideTimerRef.current = undefined
+    }, 2600)
+  }, [])
+
+  const setQty = useCallback(
+    (productId: number, nextQty: number) => {
+      const action = { type: 'SET_QTY' as const, productId, nextQty }
+      const prevU = totalOrderUnits(state)
+      const nextRoot = reducer(state, action)
+      const nextU = totalOrderUnits(nextRoot)
+      if (nextU > prevU) {
+        gaEvent('add_to_cart', { product_id: productId })
+        setAddToCartToastOpen(true)
+        scheduleAddToCartToastHide()
+      }
+      dispatch(action)
+    },
+    [state, scheduleAddToCartToastHide],
+  )
+
+  const { cart, rollsDraft } = state
+
+  useEffect(() => {
+    persistRoot(state)
+  }, [state])
+
+  useEffect(
+    () => () => {
+      if (toastHideTimerRef.current !== undefined) clearTimeout(toastHideTimerRef.current)
+    },
+    [],
+  )
+  const rollsDraftTotal = useMemo(() => sumRollsDraft(rollsDraft, catalogProducts), [rollsDraft])
+
+  const itemsInCart = cartDisplayItemCount(cart, catalogProducts)
+  const showCartChrome = cartItemCount(cart) > 0
+  const cartTotal = useMemo(() => cartLineTotal(cart, catalogProducts), [cart])
+  const cartWaMessage = useMemo(() => buildCartWhatsAppMessage(cart, catalogProducts), [cart])
+  const crumbleCookiesQty = useMemo(
+    () => crumbleCookiesQtyInCart(cart, catalogProducts),
+    [cart],
+  )
+  const canSendCartWhatsApp = useMemo(
+    () => canSendCartWhatsAppOrder(cart, catalogProducts),
+    [cart],
+  )
+
+  const value = useMemo(
+    () => ({
+      cart,
+      rollsDraft,
+      rollsDraftTotal,
+      setQty,
+      itemsInCart,
+      showCartChrome,
+      cartTotal,
+      cartWaMessage,
+      crumbleCookiesQty,
+      canSendCartWhatsApp,
+      addToCartToastOpen,
+      dismissAddToCartToast,
+    }),
+    [
+      cart,
+      rollsDraft,
+      rollsDraftTotal,
+      setQty,
+      itemsInCart,
+      showCartChrome,
+      cartTotal,
+      cartWaMessage,
+      crumbleCookiesQty,
+      canSendCartWhatsApp,
+      addToCartToastOpen,
+      dismissAddToCartToast,
+    ],
+  )
+
+  return (
+    <OrderCartContext.Provider value={value}>
+      {children}
+      <CartAddedToast />
+    </OrderCartContext.Provider>
+  )
+}
+
+function CartAddedToast() {
+  const { addToCartToastOpen, dismissAddToCartToast, cart, rollsDraft } = useOrderCart()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+
+  if (!addToCartToastOpen) return null
+
+  const displayCount = getCartDisplayCount(cart, rollsDraft, catalogProducts)
+  const orderCount = Math.max(1, displayCount)
+  const toastMain =
+    orderCount === 1 ? (
+      <span className="inline-flex items-center justify-center gap-1.5">
+        <Check className="size-[18px] shrink-0 text-cream" strokeWidth={2} aria-hidden />
+        הוספת פריט להזמנה
+      </span>
+    ) : (
+      <span className="inline-flex items-center justify-center gap-1.5">
+        <Check className="size-[18px] shrink-0 text-cream" strokeWidth={2} aria-hidden />
+        {`${orderCount} פריטים בהזמנה`}
+      </span>
+    )
+
+  const goToOrder = () => {
+    dismissAddToCartToast()
+    const scrollTarget = () => {
+      const bar = document.getElementById('order-cart-bar')
+      const catalog = document.getElementById('order-catalog')
+      ;(bar ?? catalog)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    if (pathname !== '/order') {
+      navigate('/order')
+      window.setTimeout(scrollTarget, 120)
+      return
+    }
+    scrollTarget()
+  }
+
+  return (
+    <div
+      className="pointer-events-none fixed left-1/2 z-[70] w-max max-w-[min(32rem,calc(100vw-1.5rem))] -translate-x-1/2"
+      style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        className="pointer-events-auto flex max-w-lg flex-wrap items-center justify-center gap-2 rounded-xl bg-cocoa px-4 py-2 text-sm font-medium text-cream shadow-md sm:flex-nowrap sm:gap-3"
+      >
+        <div className="flex min-w-0 flex-col items-center text-center">
+          <span>{toastMain}</span>
+          <span className="mt-1 text-xs font-normal leading-snug text-cream/80">
+            אפשר כבר לשלוח הזמנה
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={goToOrder}
+          className="shrink-0 rounded-lg border border-cream/35 bg-cream/15 px-2.5 py-1 text-xs font-semibold text-cream transition hover:bg-cream/25 active:opacity-90"
+        >
+          לסיום ההזמנה
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export function useOrderCart(): OrderCartContextValue {
+  const ctx = useContext(OrderCartContext)
+  if (!ctx) throw new Error('useOrderCart must be used within OrderCartProvider')
+  return ctx
+}
