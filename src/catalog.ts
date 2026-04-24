@@ -4,6 +4,9 @@ export type ProductCategory = 'rolls' | 'cookies' | 'crumbleCookies' | 'cakes'
 
 export const categoryOrder: ProductCategory[] = ['rolls', 'cookies', 'crumbleCookies', 'cakes']
 
+/** כרטיס ברכה — לא מוצג בגריד הקטגוריות; שורה ייעודית מעל התפריט */
+export const GREETING_CARD_PRODUCT_ID = 99
+
 /** גדלי מארז קראמבל (סך הכל בעגלה חייב להתפרק ל־4a+6b) */
 export const CRUMBLE_PACK_SIZES = [4, 6] as const
 
@@ -219,13 +222,22 @@ export const catalogProducts: CatalogProduct[] = [
     priceLabel: 'ליחידה',
     imageFile: 'cake-chocolate-nutella-sprinkles-round.png',
   },
+  {
+    id: GREETING_CARD_PRODUCT_ID,
+    category: 'cookies',
+    title: 'כרטיס ברכה',
+    desc: 'נוסף לאריזה. בסיום ההזמנה ניתן לכתוב ברכה קצרה (עד 50 תווים).',
+    price: 1,
+    priceLabel: 'לכרטיס',
+    imageFile: 'greeting-card.svg',
+  },
 ]
 
 /** השלמת רשימת ״הכי מוזמנים״ עד 3 מוצרים (אחרי כל ה־featured) */
 const CATALOG_QUICK_PICK_EXTRA_IDS: number[] = [7, 3]
 
 /**
- * 2–3 מומלצים לבלוק ״הכי מוזמנים השבוע״: קודם `featured`, השלמה לפי מזהים קבועים.
+ * 2–3 מומלצים לבלוק ״הכי מוזמנים״: קודם `featured`, השלמה לפי מזהים קבועים.
  */
 export function catalogQuickPickProducts(): CatalogProduct[] {
   const out: CatalogProduct[] = []
@@ -270,6 +282,7 @@ const catalogLocalImage: Record<string, string> = {
   'crumble-13.png': '/catalog/crumble-13.png?v=5',
   'crumble-14.png': '/catalog/crumble-14.png?v=5',
   'crumble-17.png': '/catalog/crumble-17.png?v=5',
+  'greeting-card.svg': '/catalog/greeting-card.svg?v=2',
 }
 
 export function catalogImageUrl(file: string): string {
@@ -487,6 +500,13 @@ export function cartItemCount(cart: CartState): number {
   return Object.values(cart).reduce((a, b) => a + b, 0)
 }
 
+/** סיום הודעת עגלה לפני בחירת תאריך/אופן ב־checkout (למשל מקיצור העגלה) */
+export const CART_WA_GENERIC_CLOSING_LINE = 'נשמח לתאם איסוף/משלוח ותאריך. תודה!'
+
+/** אחרי בחירה ב־checkout — מחליף את השורה הגנרית */
+export const CART_WA_CHECKOUT_SELECTED_CLOSING_LINE =
+  'הפרטים נבחרו באתר (אופן קבלה, תאריך ושעה). מחכים לאישור. תודה!'
+
 /** הודעת וואטסאפ לכל העגלה (רק מוצרים עם כמות &gt; 0) */
 export function buildCartWhatsAppMessage(cart: CartState, products: CatalogProduct[]): string {
   const lines: string[] = ['היי ליאל, אשמח להזמין:', '']
@@ -502,7 +522,7 @@ export function buildCartWhatsAppMessage(cart: CartState, products: CatalogProdu
   lines.push('')
   lines.push(`סה״כ משוער: ₪${total}`)
   lines.push('')
-  lines.push('נשמח לתאם איסוף/משלוח ותאריך. תודה!')
+  lines.push(CART_WA_GENERIC_CLOSING_LINE)
   return lines.join('\n')
 }
 
@@ -515,6 +535,61 @@ function parseLocalDateFromIso(iso: string): Date {
   const mo = Number(m[2])
   const d = Number(m[3])
   return new Date(y, mo - 1, d)
+}
+
+const CHECKOUT_SLOT_STEP_MIN = 30
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function minutesToHHmm(total: number): string {
+  return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`
+}
+
+/** חלון התחלה–סיום בדקות מהחצות לפי תאריך checkout (רביעי–שישי בלבד) */
+export function checkoutPickupWindowMinutes(iso: string): { start: number; end: number } | null {
+  const d = parseLocalDateFromIso(iso)
+  if (Number.isNaN(d.getTime())) return null
+  const dow = d.getDay()
+  if (dow === 3 || dow === 4) return { start: 16 * 60, end: 20 * 60 }
+  if (dow === 5) return { start: 10 * 60, end: 16 * 60 }
+  return null
+}
+
+/** זמני התחלה לבחירה (משבצות של ‎30 דק׳) לפי תאריך */
+export function preferredTimeSlotStartsForCheckoutIso(
+  iso: string,
+  stepMinutes: number = CHECKOUT_SLOT_STEP_MIN,
+): string[] {
+  const w = checkoutPickupWindowMinutes(iso)
+  if (!w || stepMinutes < 5) return []
+  const out: string[] = []
+  for (let t = w.start; t + stepMinutes <= w.end; t += stepMinutes) {
+    out.push(minutesToHHmm(t))
+  }
+  return out
+}
+
+/** תווית טווח משבצת: סיום–התחלה ‎(HH:mm–HH:mm) מתוך זמן התחלה */
+export function checkoutTimeSlotRangeLabel(
+  startHHmm: string,
+  stepMinutes: number = CHECKOUT_SLOT_STEP_MIN,
+): string | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(startHHmm.trim())
+  if (!m) return null
+  const h = Number(m[1])
+  const mi = Number(m[2])
+  if (!Number.isFinite(h) || !Number.isFinite(mi) || mi < 0 || mi > 59 || h < 0 || h > 23) {
+    return null
+  }
+  const startTotal = h * 60 + mi
+  const endTotal = startTotal + stepMinutes
+  return `${minutesToHHmm(endTotal)}–${pad2(h)}:${pad2(mi)}`
+}
+
+export function isValidPreferredTimeSlotStartForIso(iso: string, startHHmm: string): boolean {
+  return preferredTimeSlotStartsForCheckoutIso(iso).includes(startHHmm.trim())
 }
 
 /** תאריך ‎YYYY-MM-DD מקומי — לא בעבר (לפי יום מקומי) ורק רביעי–שישי */
@@ -573,29 +648,97 @@ function formatDeliveryDateDdMmYyyy(iso: string): string {
 const CART_WA_SUMMARY_PATTERN =
   /\n\n(סה[״"\u05F4]כ משוער: ₪[\d]+(?:\.\d+)?)/
 
+const WA_SUMMARY_SINGLE_LINE_RE = /^סה[״"\u05F4]כ משוער:\s*₪[\d.]+$/m
+
+export type MergeCartWhatsAppCheckoutOptions = {
+  /** ‎HH:mm — חייב להתאים ל־preferredTimeSlotStartsForCheckoutIso לפי התאריך */
+  preferredTimeSlotStart?: string | null
+  /** סכום מוצרים לפני משלוח (כמו cartOrderTotalWithDraft) — לעדכון סה״כ במשלוח */
+  cartSubtotalShekels?: number
+  /** תוספת משלוח למרכז */
+  centerDeliveryFeeShekels?: number
+  /** שורה אחת לפני סה״כ משוער, למשל: משלוח ל־מרכז הארץ: ₪30 */
+  whatsappDeliveryFeeDescriptionLine?: string
+}
+
+function applyCheckoutSelectedClosingToWaMessage(message: string): string {
+  if (!message.includes(CART_WA_GENERIC_CLOSING_LINE)) {
+    return `${message.trimEnd()}\n\n${CART_WA_CHECKOUT_SELECTED_CLOSING_LINE}`
+  }
+  return message.replace(CART_WA_GENERIC_CLOSING_LINE, CART_WA_CHECKOUT_SELECTED_CLOSING_LINE)
+}
+
+function applyCenterDeliveryFeeToWaSummary(
+  message: string,
+  cartSubtotalShekels: number,
+  feeShekels: number,
+  feeDescriptionLine: string,
+): string {
+  const grand = cartSubtotalShekels + feeShekels
+  const replacement = `${feeDescriptionLine}\nסה״כ משוער: ₪${grand}`
+  if (WA_SUMMARY_SINGLE_LINE_RE.test(message)) {
+    return message.replace(WA_SUMMARY_SINGLE_LINE_RE, replacement)
+  }
+  return `${message}\n\n${replacement}`
+}
+
 /** מוסיף לפני סיכום העגלה: אופן קבלה ושורת תאריך (טבעי לוואטסאפ) */
 export function mergeCartWhatsAppWithCheckoutDelivery(
   baseMessage: string,
   method: CheckoutDeliveryMethod,
   dateIso: string,
+  options?: MergeCartWhatsAppCheckoutOptions,
 ): string {
   const methodLabel = method === 'pickup' ? 'איסוף עצמי' : 'משלוח'
   const dateDdMm = formatDeliveryDateDdMmYyyy(dateIso)
-  const blockBeforeSummary = `\n\n${methodLabel}\nל־${dateDdMm}\n\n`
 
+  let timeBlock = ''
+  const slotStart = options?.preferredTimeSlotStart?.trim()
+  if (slotStart && isValidPreferredTimeSlotStartForIso(dateIso, slotStart)) {
+    const range = checkoutTimeSlotRangeLabel(slotStart)
+    if (range) {
+      timeBlock =
+        method === 'pickup'
+          ? `שעה מועדפת לאיסוף: ${range}\n`
+          : `שעה מועדפת לתיאום משלוח: ${range}\n`
+    }
+  }
+
+  const blockBeforeSummary = `\n\n${methodLabel}\nל־${dateDdMm}\n${timeBlock}\n`
+
+  let merged: string
   if (CART_WA_SUMMARY_PATTERN.test(baseMessage)) {
-    return baseMessage.replace(CART_WA_SUMMARY_PATTERN, `${blockBeforeSummary}$1`)
+    merged = baseMessage.replace(CART_WA_SUMMARY_PATTERN, `${blockBeforeSummary}$1`)
+  } else {
+    const lines = baseMessage.split('\n')
+    const summaryIdx = lines.findIndex((line) =>
+      /^סה[״"\u05F4]כ משוער:\s*₪[\d.]+$/.test(line.trim()),
+    )
+    if (summaryIdx >= 0) {
+      const head = lines.slice(0, summaryIdx).join('\n')
+      const tail = lines.slice(summaryIdx).join('\n')
+      merged = `${head}${blockBeforeSummary}${tail}`
+    } else {
+      merged = `${baseMessage}\n\n${methodLabel}\nל־${dateDdMm}\n${timeBlock}`
+    }
   }
 
-  const lines = baseMessage.split('\n')
-  const summaryIdx = lines.findIndex((line) =>
-    /^סה[״"\u05F4]כ משוער:\s*₪[\d.]+$/.test(line.trim()),
-  )
-  if (summaryIdx >= 0) {
-    const head = lines.slice(0, summaryIdx).join('\n')
-    const tail = lines.slice(summaryIdx).join('\n')
-    return `${head}${blockBeforeSummary}${tail}`
+  if (
+    method === 'delivery' &&
+    options &&
+    options.centerDeliveryFeeShekels != null &&
+    options.centerDeliveryFeeShekels > 0 &&
+    options.cartSubtotalShekels != null &&
+    Number.isFinite(options.cartSubtotalShekels) &&
+    (options.whatsappDeliveryFeeDescriptionLine?.trim().length ?? 0) > 0
+  ) {
+    merged = applyCenterDeliveryFeeToWaSummary(
+      merged,
+      options.cartSubtotalShekels,
+      options.centerDeliveryFeeShekels,
+      options.whatsappDeliveryFeeDescriptionLine!.trim(),
+    )
   }
 
-  return `${baseMessage}\n\n${methodLabel}\nל־${dateDdMm}`
+  return applyCheckoutSelectedClosingToWaMessage(merged)
 }

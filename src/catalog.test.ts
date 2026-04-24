@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CART_WA_CHECKOUT_SELECTED_CLOSING_LINE,
   ROLLS_PACK_SIZE,
   canSendCartWhatsAppOrder,
   cartOrderTotalWithDraft,
@@ -12,6 +13,7 @@ import {
   isValidCrumblePackTotal,
   isValidRollsPackTotal,
   mergeCartWhatsAppWithCheckoutDelivery,
+  preferredTimeSlotStartsForCheckoutIso,
   rollsPackIssueDescription,
   type CartState,
 } from './catalog'
@@ -236,21 +238,60 @@ describe('isValidCheckoutDeliveryDate', () => {
 })
 
 describe('mergeCartWhatsAppWithCheckoutDelivery', () => {
-  it('מוסיף אופן קבלה ושורת תאריך לפני סה״כ משוער', () => {
+  it('מוסיף אופן קבלה ושורת תאריך לפני סה״כ משוער ומחליף סיום גנרי', () => {
     const base = `פתיחה\n\nפריט ×1 ₪5\n\nסה״כ משוער: ₪5\n\nנשמח לתאם איסוף/משלוח ותאריך. תודה!`
-    const out = mergeCartWhatsAppWithCheckoutDelivery(base, 'pickup', '2030-01-09')
+    const out = mergeCartWhatsAppWithCheckoutDelivery(base, 'pickup', '2030-01-09', {
+      preferredTimeSlotStart: '17:00',
+    })
     expect(out.indexOf('איסוף עצמי')).toBeLessThan(out.indexOf('סה״כ משוער'))
     expect(out).toContain('איסוף עצמי')
     expect(out).toContain('ל־09/01/2030')
-    expect(out).toContain('נשמח לתאם איסוף')
+    expect(out).toContain('שעה מועדפת לאיסוף: 17:30–17:00')
+    expect(out).toContain(CART_WA_CHECKOUT_SELECTED_CLOSING_LINE)
+    expect(out).not.toContain('נשמח לתאם איסוף/משלוח ותאריך')
   })
 
   it('משלוח ופורמט ל־DD/MM/YYYY', () => {
     const base = `x\n\nסה״כ משוער: ₪12\n\nסוף`
-    const out = mergeCartWhatsAppWithCheckoutDelivery(base, 'delivery', '2030-01-10')
+    const out = mergeCartWhatsAppWithCheckoutDelivery(base, 'delivery', '2030-01-10', {
+      preferredTimeSlotStart: '18:00',
+    })
     expect(out).toContain('משלוח')
     expect(out).toContain('ל־10/01/2030')
+    expect(out).toContain('שעה מועדפת לתיאום משלוח: 18:30–18:00')
+    expect(out).toContain(CART_WA_CHECKOUT_SELECTED_CLOSING_LINE)
     expect(out).not.toContain('שיטת קבלה')
+  })
+
+  it('משלוח עם אופציות — מוסיף שורת משלוח ומעדכן סה״כ', () => {
+    const base = `פתיחה\n\nפריט ×1 ₪10\n\nסה״כ משוער: ₪10\n\nנשמח לתאם איסוף/משלוח ותאריך. תודה!`
+    const out = mergeCartWhatsAppWithCheckoutDelivery(base, 'delivery', '2030-01-10', {
+      cartSubtotalShekels: 10,
+      centerDeliveryFeeShekels: 30,
+      whatsappDeliveryFeeDescriptionLine: 'משלוח ל־מרכז הארץ: ₪30',
+      preferredTimeSlotStart: '17:00',
+    })
+    expect(out).toContain('משלוח ל־מרכז הארץ: ₪30')
+    expect(out).toContain('סה״כ משוער: ₪40')
+    expect(out.indexOf('משלוח ל־מרכז')).toBeLessThan(out.indexOf('סה״כ משוער: ₪40'))
+    expect(out).toContain('שעה מועדפת לתיאום משלוח: 17:30–17:00')
+    expect(out).toContain(CART_WA_CHECKOUT_SELECTED_CLOSING_LINE)
+  })
+})
+
+describe('preferredTimeSlotStartsForCheckoutIso', () => {
+  it('רביעי: משבצות חצי שעה מ־16:00 עד 19:30', () => {
+    const slots = preferredTimeSlotStartsForCheckoutIso('2030-01-09')
+    expect(slots[0]).toBe('16:00')
+    expect(slots[slots.length - 1]).toBe('19:30')
+    expect(slots).toHaveLength(8)
+  })
+
+  it('שישי: מ־10:00 עד 15:30', () => {
+    const slots = preferredTimeSlotStartsForCheckoutIso('2030-01-11')
+    expect(slots[0]).toBe('10:00')
+    expect(slots[slots.length - 1]).toBe('15:30')
+    expect(slots).toHaveLength(12)
   })
 })
 

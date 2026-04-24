@@ -20,9 +20,9 @@
   --color-cream: #faf7f2;
   --color-cream-dark: #f0ebe3;
   --color-ink: #1c1410;
-  --color-ink-muted: #4a4039;
+  --color-ink-muted: #3a332e;
   --color-gold: #b8956a;
-  --color-gold-deep: #8f6e3d;
+  --color-gold-deep: #7a5c32;
   --color-cocoa: #3d2c26;
   --color-blush: #c4a69a;
 }
@@ -52,9 +52,26 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-gold-deep;
   }
+
+  .legal-prose h2 {
+    @apply scroll-mt-24;
+  }
   img {
     background: transparent !important;
   }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.intro-video-enter {
+  animation: fadeIn 0.8s ease forwards;
 }
 
 /**
@@ -137,6 +154,22 @@
     object-position: center;
     box-sizing: border-box;
     background-color: #ffffff !important;
+  }
+
+  @media (max-width: 767px) {
+    .product-card > div:first-child > div {
+      align-items: stretch !important;
+      justify-content: stretch !important;
+      padding: 6px !important;
+    }
+
+    .product-card .product-card-media {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: none !important;
+      max-height: none !important;
+      object-fit: cover !important;
+    }
   }
 
 }

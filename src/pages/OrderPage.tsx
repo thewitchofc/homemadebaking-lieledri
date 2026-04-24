@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Home, ShoppingBag } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
 import {
   cartDisplayItemCount,
   cartOrderTotalWithDraft,
@@ -9,11 +9,13 @@ import {
 } from '../catalog'
 import { gaEvent } from '../analytics'
 import { useOrderCart } from '../contexts/OrderCartContext'
+import { DocumentMeta } from '../components/DocumentMeta'
 import { defaultWaMessage, site } from '../siteConfig'
 import { ProductCatalog } from '../components/ProductCatalog'
 import { WaButton } from '../components/WaButton'
 
 const orderNav = [
+  { href: '#greeting-card-row', label: 'כרטיס ברכה' },
   { href: '#catalog-rolls', label: 'מגולגלות' },
   { href: '#catalog-cookies', label: 'עוגיות' },
   { href: '#catalog-crumbleCookies', label: 'קראמבל' },
@@ -66,20 +68,61 @@ export default function OrderPage() {
   return (
     <main
       id="main"
-      className={`relative ${showCartChrome ? 'pb-[max(5.75rem,calc(env(safe-area-inset-bottom)+4.75rem))] sm:pb-24' : 'pb-[env(safe-area-inset-bottom)]'}`}
+      className={`relative z-[1] overflow-x-hidden bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_100%)] ${
+        showCartChrome
+          ? 'pb-[max(5.25rem,calc(env(safe-area-inset-bottom)+4.25rem))] sm:pb-20'
+          : 'pb-[env(safe-area-inset-bottom)]'
+      }`}
     >
-      <section className="border-b border-cream-dark/50 bg-cream-dark/20 py-10 sm:py-12">
+      <div
+        className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0"
+        aria-hidden
+      >
+        <img
+          src="/order-menu-countertop.png?v=1"
+          sizes="100vw"
+          alt=""
+          width={1024}
+          height={682}
+          className="h-full w-full object-cover object-center opacity-[0.88]"
+          decoding="async"
+          fetchPriority="low"
+        />
+      </div>
+      <div
+        className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[radial-gradient(ellipse_at_center,rgba(255,252,248,0.28)_0%,rgba(255,252,248,0.08)_42%,transparent_62%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[linear-gradient(180deg,rgba(247,243,238,0.14)_0%,transparent_28%,transparent_72%,rgba(239,231,223,0.22)_100%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(42,32,26,0.045)_100%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[url('/noise.png')] bg-repeat opacity-[0.025] mix-blend-multiply"
+        aria-hidden
+      />
+
+      <div className="relative z-10">
+      <DocumentMeta
+        title={`תפריט מתוקים | ${site.brandHe}`}
+        description={`מגולגלות, עוגיות, קראמבל, עוגות ומארזים — הזמנה דרך האתר וסיום בוואטסאפ. נקודת איסוף: ${site.pickupAddress}. משלוח ל${site.deliveryFeeCenterArea} בתיאום.`}
+      />
+      <section className="border-b border-cream-dark/40 bg-white/25 py-4 backdrop-blur-[1px] sm:py-5">
         <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-          <h1 className="font-display text-3xl font-medium text-ink sm:text-4xl">תפריט מתוקים</h1>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-ink-muted sm:text-base">
-            כל מה שצריך כדי להזמין, במקום אחד. בחרו נושא מתפריט המתוקים למטה.
+          <h1 className="font-display text-2xl font-medium text-ink sm:text-3xl">תפריט מתוקים</h1>
+          <p className="mx-auto mt-2 max-w-lg text-xs text-ink-muted sm:text-sm">
+            הזמנה מהרשימה למטה — בחירת קטגוריה מהניווט.
           </p>
         </div>
       </section>
 
       <nav
         ref={categoryNavRef}
-        className="sticky top-[var(--header-h)] z-40 mt-2 mb-2 border-b border-cream-dark/45 bg-white/80 py-2 backdrop-blur-sm"
+        className="sticky top-[var(--header-h)] z-40 mt-1 mb-1.5 border-b border-cream-dark/45 bg-white/80 py-2 backdrop-blur-sm"
         aria-label="ניווט קטגוריות בתפריט המתוקים"
       >
         <div className="mx-auto max-w-6xl px-3 sm:px-6">
@@ -92,7 +135,7 @@ export default function OrderPage() {
                     href={item.href}
                     aria-current={isActive ? 'location' : undefined}
                     className={[
-                      'inline-flex min-h-9 touch-manipulation items-center justify-center rounded-full border px-3 py-1.5 text-xs font-medium transition sm:min-h-0',
+                      'inline-flex min-h-9 touch-manipulation items-center justify-center rounded-full border px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep sm:min-h-0',
                       isActive
                         ? 'border-cocoa bg-cocoa text-cream hover:border-cocoa hover:bg-cocoa hover:text-cream'
                         : 'border-cream-dark/60 bg-cream/90 text-ink hover:border-gold-deep hover:text-gold-deep active:bg-cream-dark/45',
@@ -107,15 +150,15 @@ export default function OrderPage() {
         </div>
       </nav>
 
-      <section id="order-catalog" className="scroll-mt-36 border-b border-cream-dark/40 bg-cream-dark/20 py-12 sm:py-16">
+      <section id="order-catalog" className="scroll-mt-36 border-b border-cream-dark/40 bg-white/20 py-5 backdrop-blur-[1px] sm:py-6">
         <ProductCatalog
-          className="bg-cream-dark/20 pb-2"
+          className="bg-transparent pb-2"
           dense
           cart={cart}
           rollsDraft={rollsDraft}
           onChangeQty={setQty}
         />
-        <p className="mt-6 text-center">
+        <p className="mt-3 text-center">
           <Link
             to="/"
             className="inline-flex min-h-11 touch-manipulation items-center justify-center px-2 text-sm font-semibold text-gold-deep underline-offset-4 hover:underline active:text-gold sm:min-h-0"
@@ -125,10 +168,10 @@ export default function OrderPage() {
         </p>
       </section>
 
-      <section id="order-steps" className="scroll-mt-36 border-b border-cream-dark/40 bg-cream py-12 sm:py-16">
+      <section id="order-steps" className="scroll-mt-36 border-b border-cream-dark/40 bg-cream py-5 sm:py-6">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-center font-display text-2xl font-medium text-ink">איך מזמינים</h2>
-          <ol className="mt-8 grid gap-6 sm:grid-cols-3">
+          <h2 className="text-center font-display text-xl font-medium text-ink sm:text-2xl">איך מזמינים</h2>
+          <ol className="mt-4 grid gap-3 sm:grid-cols-3 sm:gap-4">
             {[
               {
                 step: '1',
@@ -148,9 +191,9 @@ export default function OrderPage() {
             ].map((s) => (
               <li
                 key={s.step}
-                className="rounded-2xl border border-cream-dark bg-cream p-6 text-center shadow-sm"
+                className="rounded-xl border border-cream-dark bg-cream p-4 text-center shadow-sm sm:p-4"
               >
-                <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-cocoa font-display text-xl font-semibold text-gold">
+                <span className="mx-auto flex size-10 items-center justify-center rounded-full bg-cocoa font-display text-lg font-semibold text-gold">
                   {s.step}
                 </span>
                 <h3 className="mt-3 font-semibold text-ink">{s.title}</h3>
@@ -161,50 +204,41 @@ export default function OrderPage() {
         </div>
       </section>
 
-      <section id="order-send" className="scroll-mt-36 py-14 sm:py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="overflow-hidden rounded-3xl border border-cream-dark bg-cream shadow-sm">
-            <div className="mx-auto flex max-w-lg flex-col items-center bg-cream-dark/25 p-8 text-center sm:p-10">
-              <p className="font-display text-xl text-ink sm:text-2xl">מוכנים לטעימה הבאה?</p>
-              <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-                שורה אחת בוואטסאפ, ואני חוזרת אליכם עם כל מה שצריך.
-              </p>
-              <WaButton message={defaultWaMessage} className="mt-6 w-full max-w-sm">
-                שלחו הודעה עכשיו
-              </WaButton>
-            </div>
+      <section id="order-send" className="scroll-mt-36 py-6 md:py-8">
+        <div className="mx-auto max-w-2xl px-4 sm:px-6">
+          <div className="rounded-xl border border-cream-dark/50 bg-cream/90 px-4 py-5 text-center shadow-sm sm:px-5">
+            <p className="font-display text-xl text-ink md:text-2xl">מוכנים לטעימה הבאה?</p>
+            <p className="mx-auto mt-2 max-w-md text-xs text-ink-muted sm:text-sm">שורה בוואטסאפ — חוזרים אליכם.</p>
+            <WaButton
+              message={defaultWaMessage}
+              className="mt-4 !min-h-0 w-full max-w-xs !px-4 !py-2 !text-sm sm:mx-auto [&_svg]:size-4"
+            >
+              שלחו הודעה עכשיו
+            </WaButton>
           </div>
         </div>
       </section>
 
-      <section id="order-details" className="scroll-mt-36 border-t border-cream-dark/40 bg-cream py-12 sm:py-16">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <h2 className="font-display text-2xl font-medium text-ink">פרטים ואיסוף</h2>
-          <p className="mt-3 text-sm leading-relaxed text-ink-muted sm:text-base">
-            ניתן להזמין לימי <strong className="text-ink">{site.orderDays}</strong> בלבד.
+      <section id="order-details" className="scroll-mt-36 border-t border-cream-dark/40 py-4 sm:py-5">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+          <h2 className="font-display text-base font-medium text-ink sm:text-lg">פרטים ואיסוף</h2>
+          <p className="mt-1 text-xs text-ink-muted sm:text-sm">
+            ימי הזמנה: <strong className="text-ink">{site.orderDays}</strong>
           </p>
-          <ul className="mt-6 space-y-5 text-sm sm:text-base">
-            <li className="flex gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-cocoa/10 text-gold-deep">
-                <Home className="size-5" strokeWidth={2} aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="font-semibold text-ink">איסוף עצמי</p>
-                <p className="text-ink-muted">{site.pickupAddress}</p>
-              </div>
-            </li>
-            <li className="flex gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-cocoa/10 text-gold-deep">
-                <ShoppingBag className="size-5" strokeWidth={2} aria-hidden />
-              </span>
-              <div className="min-w-0">
-                <p className="font-semibold text-ink">משלוח</p>
-                <p className="text-ink-muted">בתיאום מראש, נתאם יחד בוואטסאפ.</p>
-              </div>
-            </li>
-          </ul>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-ink-muted">
+            <span className="min-w-0 max-w-full leading-snug">
+              <strong className="text-ink">איסוף</strong> {site.pickupAddress} · {site.pickupWindowFri} ·{' '}
+              {site.pickupWindowWedThu} · משבצת בסיום הזמנה
+            </span>
+            <span className="min-w-0 max-w-full leading-snug">
+              <strong className="text-ink">משלוח</strong> {site.deliveryFeeCenterArea} ₪{site.deliveryFeeCenterShekels}{' '}
+              בתיאום — יתווסף לסיכום בהמשך
+            </span>
+          </div>
         </div>
       </section>
+
+      </div>
 
       {showCartChrome ? (
         <div
@@ -218,12 +252,20 @@ export default function OrderPage() {
               סה״כ להזמנה ₪{cartBarOrderTotal}
             </p>
             {canSendCartWhatsApp ? (
-              <Link
-                to="/checkout"
-                className="inline-flex min-h-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-cream/40 bg-cocoa px-4 py-2 text-sm font-semibold text-cream transition hover:bg-gold-deep active:opacity-90"
-              >
-                לסיום ההזמנה
-              </Link>
+              <div className="inline-flex shrink-0 items-stretch overflow-hidden rounded-full border border-cream/40 bg-cocoa text-cream shadow-sm">
+                <Link
+                  to="/checkout"
+                  className="inline-flex min-h-11 touch-manipulation items-center justify-center px-4 py-2 text-sm font-semibold text-cream transition hover:bg-gold-deep active:opacity-90"
+                >
+                  לסיום ההזמנה
+                </Link>
+                <span
+                  className="pointer-events-none flex items-center justify-center border-s border-cream/30 px-2.5 sm:px-3"
+                  aria-hidden
+                >
+                  <ShoppingCart className="size-[1.1rem] shrink-0 sm:size-5" strokeWidth={2} />
+                </span>
+              </div>
             ) : (
               <button
                 type="button"
@@ -239,7 +281,7 @@ export default function OrderPage() {
           </div>
           {cartBarLineCount > 0 ? (
             <p className="mt-2 px-4 text-center text-sm text-ink/70">
-              מעולה, ההזמנה התחילה 🛒 אפשר להוסיף עוד משהו קטן 😉
+              מעולה, ההזמנה התחילה. אפשר להוסיף עוד משהו קטן.
             </p>
           ) : null}
         </div>

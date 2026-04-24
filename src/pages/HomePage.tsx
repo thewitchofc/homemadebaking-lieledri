@@ -1,14 +1,273 @@
-import { useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Cake, Clock, Heart, Sparkles, Star, Truck } from 'lucide-react'
-import { defaultWaMessage, site, siteImages } from '../siteConfig'
-import { InstagramIcon } from '../components/InstagramIcon'
+import { site, siteImages, siteSeo } from '../siteConfig'
+import { DocumentMeta } from '../components/DocumentMeta'
+import { HomeHero } from '../components/HomeHero'
 import { WaButton } from '../components/WaButton'
 
 const heroWordmark = site.logoWordmarkLatin
 
+/** פתיחת וילונות אחרי הסרטון (ms) — מסונכרן עם transitionDuration על הפאנלים */
+const INTRO_CURTAIN_MS = 3400
+/** המתנה אחרי סיום אנימציית הווילון לפני הסרת ה-overlay */
+const INTRO_AFTER_CURTAIN_MS = 450
+/** כניסה ויציאה של הלוגו במרכז הווידאו */
+const LOGO_MOTION_MS = 2600
+const LOGO_ENTER_DELAY_MS = 750
+/** טשטוש הולך וגובר בשתי השניות האחרונות של ה-intro */
+const INTRO_END_BLUR_LAST_SEC = 2
+const INTRO_END_BLUR_MAX_PX = 16
+/** טשטוש מקסימלי על שני חצאי הווידאו אחרי ramp בזמן פתיחת הווילון */
+const INTRO_SPLIT_BLUR_PX = 14
+/** משך עליית טשטוש הווילון (הדרגתי, לא בבום) */
+const INTRO_SPLIT_BLUR_RAMP_MS = 1000
+
+function smoothstep01(t: number): number {
+  const x = Math.min(1, Math.max(0, t))
+  return x * x * (3 - 2 * x)
+}
+
+function introVideoBlurStyle(
+  introEndBlurPx: number,
+  splitBlurRampPx: number,
+): { filter: string } | undefined {
+  const reduce =
+    typeof globalThis !== 'undefined' &&
+    globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const splitPx = reduce ? 0 : splitBlurRampPx
+  const total = introEndBlurPx + splitPx
+  if (total <= 0) return undefined
+  return { filter: `blur(${total}px)` }
+}
+
 export default function HomePage() {
   const { pathname, hash, key } = useLocation()
+  const [showIntro, setShowIntro] = useState(false)
+  const [split, setSplit] = useState(false)
+  const [logoState, setLogoState] = useState<'hidden' | 'visible' | 'fadeOut'>('hidden')
+  const [introEndBlurPx, setIntroEndBlurPx] = useState(0)
+  /** 0 → INTRO_SPLIT_BLUR_PX בזמן פתיחת וילון (אנימציה הדרגתית) */
+  const [splitBlurRampPx, setSplitBlurRampPx] = useState(0)
+  const introFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const logoPlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const logoDurationFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const videoLeftRef = useRef<HTMLVideoElement | null>(null)
+  const videoRightRef = useRef<HTMLVideoElement | null>(null)
+  const introBlurRaf = useRef<number | null>(null)
+  const introSplitStartedRef = useRef(false)
+  const introSplitWallMsRef = useRef<number | null>(null)
+  /** מזהה requestVideoFrameCallback על הווידאו השמאלי — ביטול ב-cleanup */
+  const introRvfcHandleRef = useRef<number>(-1)
+  const introSyncRafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const isDesktop = window.matchMedia('(min-width: 1024px) and (pointer: fine)').matches
+    if (isDesktop) setShowIntro(true)
+    return () => {
+      if (introFadeTimer.current) clearTimeout(introFadeTimer.current)
+      if (logoPlayTimerRef.current) clearTimeout(logoPlayTimerRef.current)
+      if (logoDurationFadeRef.current) clearTimeout(logoDurationFadeRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!showIntro) return
+    const L = videoLeftRef.current
+    const R = videoRightRef.current
+    if (!L || !R) return
+
+    const flushIntroEndBlur = () => {
+      introBlurRaf.current = null
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      if (reduceMotion) {
+        setIntroEndBlurPx(0)
+        return
+      }
+      const d = L.duration
+      if (!Number.isFinite(d) || d <= 0) return
+      let px = 0
+      if (d <= INTRO_END_BLUR_LAST_SEC) {
+        const u = Math.min(1, Math.max(0, L.currentTime / d))
+        px = smoothstep01(u) * INTRO_END_BLUR_MAX_PX
+      } else {
+        const windowStart = d - INTRO_END_BLUR_LAST_SEC
+        if (L.currentTime >= windowStart) {
+          const u = Math.min(1, Math.max(0, (L.currentTime - windowStart) / INTRO_END_BLUR_LAST_SEC))
+          px = smoothstep01(u) * INTRO_END_BLUR_MAX_PX
+        }
+      }
+      setIntroEndBlurPx(px)
+    }
+
+    const scheduleIntroEndBlur = () => {
+      if (introBlurRaf.current != null) return
+      introBlurRaf.current = requestAnimationFrame(flushIntroEndBlur)
+    }
+
+    const curtainSec = INTRO_CURTAIN_MS / 1000
+    const maybeStartCurtainWhilePlaying = () => {
+      if (introSplitStartedRef.current) return
+      const d = L.duration
+      if (!Number.isFinite(d) || d <= 0) return
+      const splitAt = Math.max(0, d - curtainSec)
+      if (L.currentTime < splitAt) return
+      introSplitStartedRef.current = true
+      introSplitWallMsRef.current = Date.now()
+      setSplit(true)
+    }
+
+    /** סנכרון ימין לשמאל — סף נמוך + פריים-אחר-פריים כדי למנוע "אחד אחד" */
+    const DRIFT_MAX_SEC = 0.028
+    const syncSlaveToMaster = (master: HTMLVideoElement, slave: HTMLVideoElement) => {
+      if (Math.abs(slave.currentTime - master.currentTime) > DRIFT_MAX_SEC) {
+        slave.currentTime = master.currentTime
+      }
+    }
+
+    const runIntroFrameSync = () => {
+      const L2 = videoLeftRef.current
+      const R2 = videoRightRef.current
+      if (!L2 || !R2) return
+      syncSlaveToMaster(L2, R2)
+      maybeStartCurtainWhilePlaying()
+      scheduleIntroEndBlur()
+    }
+
+    const cancelRvfc = () => {
+      const el = videoLeftRef.current
+      if (el != null && introRvfcHandleRef.current !== -1 && 'cancelVideoFrameCallback' in el) {
+        el.cancelVideoFrameCallback(introRvfcHandleRef.current)
+      }
+      introRvfcHandleRef.current = -1
+    }
+
+    const cancelRafSync = () => {
+      if (introSyncRafRef.current != null) cancelAnimationFrame(introSyncRafRef.current)
+      introSyncRafRef.current = null
+    }
+
+    const onMasterVideoFrame: VideoFrameRequestCallback = () => {
+      const L2 = videoLeftRef.current
+      const R2 = videoRightRef.current
+      if (!L2 || !R2) return
+      if (L2.paused || L2.ended) return
+      runIntroFrameSync()
+      introRvfcHandleRef.current = L2.requestVideoFrameCallback(onMasterVideoFrame)
+    }
+
+    const kickRvfcLoop = () => {
+      cancelRvfc()
+      const L2 = videoLeftRef.current
+      if (L2 && !L2.paused && !L2.ended && typeof L2.requestVideoFrameCallback === 'function') {
+        introRvfcHandleRef.current = L2.requestVideoFrameCallback(onMasterVideoFrame)
+      }
+    }
+
+    const rafSyncLoop = () => {
+      introSyncRafRef.current = null
+      const L2 = videoLeftRef.current
+      const R2 = videoRightRef.current
+      if (!L2 || !R2 || L2.paused || L2.ended) return
+      runIntroFrameSync()
+      introSyncRafRef.current = requestAnimationFrame(rafSyncLoop)
+    }
+
+    const kickRafFallback = () => {
+      cancelRafSync()
+      const L2 = videoLeftRef.current
+      if (L2 && !L2.paused && !L2.ended) {
+        introSyncRafRef.current = requestAnimationFrame(rafSyncLoop)
+      }
+    }
+
+    const onPlaying = () => {
+      const L2 = videoLeftRef.current
+      const R2 = videoRightRef.current
+      if (!L2 || !R2) return
+      R2.currentTime = L2.currentTime
+      maybeStartCurtainWhilePlaying()
+      void R2.play().catch(() => {})
+      if (typeof L2.requestVideoFrameCallback === 'function') {
+        kickRvfcLoop()
+      } else {
+        kickRafFallback()
+      }
+    }
+
+    const onTimeupdateBackup = () => {
+      if (introRvfcHandleRef.current !== -1 || introSyncRafRef.current != null) return
+      runIntroFrameSync()
+    }
+
+    L.addEventListener('playing', onPlaying)
+    L.addEventListener('timeupdate', onTimeupdateBackup)
+
+    if (!L.paused && !L.ended) {
+      R.currentTime = L.currentTime
+      void R.play().catch(() => {})
+      if (typeof L.requestVideoFrameCallback === 'function') {
+        kickRvfcLoop()
+      } else {
+        kickRafFallback()
+      }
+    }
+
+    return () => {
+      L.removeEventListener('playing', onPlaying)
+      L.removeEventListener('timeupdate', onTimeupdateBackup)
+      cancelRvfc()
+      cancelRafSync()
+      if (introBlurRaf.current != null) cancelAnimationFrame(introBlurRaf.current)
+      introBlurRaf.current = null
+    }
+  }, [showIntro])
+
+  useEffect(() => {
+    if (!showIntro) {
+      setIntroEndBlurPx(0)
+      setSplitBlurRampPx(0)
+      introSplitStartedRef.current = false
+      introSplitWallMsRef.current = null
+    }
+  }, [showIntro])
+
+  useEffect(() => {
+    if (!split) {
+      setSplitBlurRampPx(0)
+      return
+    }
+    const reduce =
+      typeof globalThis !== 'undefined' &&
+      globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) {
+      setSplitBlurRampPx(INTRO_SPLIT_BLUR_PX)
+      return
+    }
+    const start = performance.now()
+    let raf = 0
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / INTRO_SPLIT_BLUR_RAMP_MS)
+      setSplitBlurRampPx(INTRO_SPLIT_BLUR_PX * smoothstep01(t))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [split])
+
+  useEffect(() => {
+    if (!showIntro) return
+    const html = document.documentElement
+    const body = document.body
+    const prevHtml = html.style.overflow
+    const prevBody = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = prevHtml
+      body.style.overflow = prevBody
+    }
+  }, [showIntro])
 
   useLayoutEffect(() => {
     if (hash) {
@@ -25,28 +284,40 @@ export default function HomePage() {
 
   return (
     <main id="main" className="page main">
-      <section
-        className="hero border-b border-cream-dark/60"
-        style={{ backgroundImage: `url(${siteImages.heroBackdrop})` }}
-      >
-        <div className="overlay">
-          <div className="content">
-            <div className="flex flex-col items-center gap-4 text-ink sm:gap-6 md:gap-8">
-              <div className="text-center" lang="en" dir="ltr">
-                <h1 className="m-0 font-didone text-[clamp(2rem,8vw,4rem)] font-semibold uppercase leading-none tracking-[0.08em] text-ink antialiased sm:tracking-[0.1em] md:text-[clamp(2.75rem,6.5vw,5.25rem)] lg:text-[clamp(3.25rem,5.5vw,5.75rem)]">
-                  {heroWordmark}
-                </h1>
-                <p className="m-0 mt-1 font-script text-[clamp(2rem,7vw,3.5rem)] font-normal leading-none text-gold-deep md:mt-2 md:text-[clamp(2.5rem,6vw,4.5rem)] lg:text-[clamp(2.85rem,5vw,4.85rem)]">
-                  {site.brandEn}
-                </p>
-              </div>
-              <h2 className="font-hero text-[clamp(1.2rem,3.4vw,1.85rem)] font-medium leading-snug text-ink/95 text-balance antialiased md:text-[clamp(1.35rem,2.6vw,2.15rem)] lg:text-[clamp(1.45rem,2.2vw,2.35rem)]">
-                קינוחי בוטיק ביתיים בעבודת יד עם חומרי גלם הכי איכותיים וטריים בשבילכם.
-              </h2>
-            </div>
+      <div className="relative min-h-[100svh] overflow-hidden bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_60%,#e9e1d8_100%)]">
+        <div
+          className="pointer-events-none absolute top-[-15%] left-1/2 h-[900px] w-[900px] -translate-x-1/2 rounded-full bg-white/30 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute bottom-[-20%] right-[-10%] h-[800px] w-[800px] rounded-full bg-black/5 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] bg-repeat opacity-[0.04] mix-blend-multiply"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.6),transparent_60%)] opacity-[0.06]"
+          aria-hidden
+        />
+        <div className="relative z-10">
+      <DocumentMeta title={siteSeo.defaultTitle} description={siteSeo.defaultDescription} />
+      <HomeHero>
+        <div className="flex flex-col items-center gap-4 text-ink sm:gap-6 md:gap-8">
+          <div className="text-center" lang="en" dir="ltr">
+            <h1 className="m-0 font-didone text-[clamp(2rem,8vw,4rem)] font-semibold uppercase leading-none tracking-[0.08em] text-ink antialiased drop-shadow-sm sm:tracking-[0.1em] md:text-[clamp(2.75rem,6.5vw,5.25rem)] lg:text-[clamp(3.25rem,5.5vw,5.75rem)]">
+              {heroWordmark}
+            </h1>
+            <p className="m-0 mt-1 font-script text-[clamp(2rem,7vw,3.5rem)] font-normal leading-none text-gold-deep drop-shadow-sm md:mt-2 md:text-[clamp(2.5rem,6vw,4.5rem)] lg:text-[clamp(2.85rem,5vw,4.85rem)]">
+              {site.brandEn}
+            </p>
           </div>
+          <h2 className="font-hero text-[clamp(1.2rem,3.4vw,1.85rem)] font-medium leading-snug text-ink/95 text-balance antialiased drop-shadow-sm md:text-[clamp(1.35rem,2.6vw,2.15rem)] lg:text-[clamp(1.45rem,2.2vw,2.35rem)]">
+            קינוחי בוטיק ביתיים בעבודת יד עם חומרי גלם הכי איכותיים וטריים בשבילכם.
+          </h2>
         </div>
-      </section>
+      </HomeHero>
 
       <section
         id="home-intro"
@@ -60,27 +331,17 @@ export default function HomePage() {
           <p className="text-base leading-relaxed text-ink-muted sm:text-lg">
             השירות, קינוחים ומארזים בהתאמה אישית לשולחן שלכם.
           </p>
-          <p className="mt-3 text-base leading-relaxed text-ink-muted sm:text-lg">
-            למי, משפחות, חגיגות קטנות וגדולות, ומי שרוצה להרגיש ״יוקרה ביתית״ בלי רעש.
+          <p className="mt-6 text-base leading-relaxed text-ink sm:text-lg">
+            היתרון המרכזי, חומרי גלם איכותיים, עקביות בטעם וליווי נעים עד הרגע שאתם נוגעים בקינוח.
           </p>
-          <p className="mt-3 text-sm font-medium text-gold-deep sm:text-base">
-            היתרון המרכזי, חומרי גלם איכותיים, עקביות בטעם וליווי נעים עד הרגע שאתם נוגעים במזלג.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <WaButton message={defaultWaMessage} className="shadow-cocoa/25">
-              דברו איתי עכשיו בוואטסאפ
-            </WaButton>
+          <div className="mt-10 flex justify-center">
             <Link
               to="/order"
-              className="inline-flex min-h-11 touch-manipulation items-center gap-1 px-1 py-2 text-sm font-medium text-gold-deep underline-offset-4 hover:underline active:text-gold sm:min-h-0 sm:px-0 sm:py-0"
+              className="inline-flex min-h-[52px] min-w-[min(100%,280px)] touch-manipulation items-center justify-center rounded-full bg-gold-deep px-10 py-3.5 text-center text-base font-semibold tracking-wide text-cream shadow-lg shadow-cocoa/30 ring-2 ring-gold-deep/80 ring-offset-2 ring-offset-cream transition hover:bg-cocoa hover:ring-cocoa/60 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep active:scale-[0.98] sm:min-h-14 sm:px-12 sm:text-lg"
             >
               לתפריט המתוקים
             </Link>
           </div>
-          <p className="mx-auto mt-10 max-w-xs rounded-xl border border-cream-dark/60 bg-white/75 px-4 py-3 text-xs leading-snug text-ink-muted backdrop-blur-sm sm:max-w-sm sm:text-sm">
-            <span className="font-semibold text-ink">פרימיום בלי פוזה.</span> טעמים מדויקים, מרקם נקי,
-            מראה שמכבד את האירוע.
-          </p>
         </div>
       </section>
 
@@ -237,22 +498,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-cocoa py-12 text-center text-cream sm:py-16">
-        <div className="mx-auto max-w-2xl px-4 sm:px-6">
-          <p className="font-display text-2xl font-medium sm:text-3xl">
-            רוצים להרגיש את ההבדל בשולחן שלכם?
+      <section className="my-10 border-t border-cream-dark/35 bg-[linear-gradient(180deg,#4a2e24_0%,#3b241c_100%)] py-10 text-cream md:py-14">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 text-center sm:px-6">
+          <p className="font-display text-2xl font-semibold leading-tight md:text-3xl">
+            רוצים להרגיש את ההבדל בשולחן?
           </p>
-          <p className="mt-3 text-sm text-cream/85 sm:text-base">
-            שליחת הודעה קצרה — חוזרים עם אפשרויות ותאריך מתאים.
+          <p className="max-w-md text-sm leading-snug text-white/80">
+            הודעה קצרה בוואטסאפ — חוזרים עם פרטים ותאריך מתאים.
           </p>
-          <div className="mt-8">
-            <WaButton
-              variant="light"
-              message="היי ליאל, אשמח להתייעץ איתך על קינוחים למועד שלי. מה התאריכים הפנויים?"
-            >
-              דברו איתי בוואטסאפ
-            </WaButton>
-          </div>
+          <WaButton
+            variant="light"
+            message="היי ליאל, אשמח להתייעץ איתך על קינוחים למועד שלי. מה התאריכים הפנויים?"
+            className="!min-h-0 gap-1.5 !px-5 !py-2.5 !text-sm [&_svg]:size-4"
+          >
+            דברו איתי בוואטסאפ
+          </WaButton>
         </div>
       </section>
 
@@ -294,40 +554,155 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="border-t border-cream-dark/60 bg-cocoa py-16 text-center text-cream sm:py-24">
-        <div className="mx-auto max-w-2xl px-4 sm:px-6">
-          <p className="font-display text-2xl font-medium leading-snug sm:text-4xl">
-            בואו נבנה יחד את הקינוח שישדרג את הרגע שלכם
+      <section className="my-10 border-t border-cream-dark/35 bg-[linear-gradient(180deg,#4a2e24_0%,#3b241c_100%)] py-10 text-cream md:py-14">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 text-center sm:px-6">
+          <p className="font-display text-2xl font-semibold leading-tight md:text-3xl">
+            בואו נבנה יחד את הקינוח לרגע שלכם
           </p>
-          <p className="mt-4 text-sm text-cream/85 sm:text-base">
-            אני כאן לליווי אישי, בלי לחץ, עם הרבה טעם.
-          </p>
-          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          <p className="max-w-md text-sm leading-snug text-white/80">ליווי אישי, בלי לחץ.</p>
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               to="/order"
-              className="inline-flex min-h-[48px] min-w-[200px] items-center justify-center rounded-full border-2 border-cream/40 px-8 py-3 text-base font-semibold text-cream transition hover:bg-white/10"
+              className="inline-flex items-center justify-center rounded-full border border-cream/80 bg-cream px-5 py-2.5 text-sm font-semibold text-cocoa shadow-md shadow-black/10 transition hover:border-white hover:bg-white hover:text-cocoa focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep active:opacity-90"
             >
               תפריט מתוקים
             </Link>
             <WaButton
-              variant="light"
+              variant="outline"
               message="היי ליאל, בוא נתחיל הזמנה. זה התאריך שלי, "
-              className="min-h-[48px] min-w-[200px] px-8 py-4 text-base"
+              className="!min-h-0 gap-1.5 !px-5 !py-2.5 !text-sm [&_svg]:size-4"
             >
               פתחו שיחה בוואטסאפ
             </WaButton>
-            <a
-              href={site.instagramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-[48px] items-center gap-2 rounded-full border border-white/25 px-6 py-3 text-sm font-medium text-cream hover:bg-white/10"
-            >
-              <InstagramIcon className="size-5" />
-              {site.instagramHandle}
-            </a>
           </div>
         </div>
       </section>
+        </div>
+      </div>
+      {showIntro ? (
+        <div className="fixed inset-0 z-[9999] flex" dir="ltr" aria-hidden>
+          <div
+            className={`relative z-10 h-full w-1/2 min-w-0 overflow-hidden bg-black transition-transform ease-[cubic-bezier(0.45,0.05,0.55,0.95)] motion-reduce:transition-none ${
+              split ? '-translate-x-full' : 'translate-x-0'
+            }`}
+            style={{ transitionDuration: `${INTRO_CURTAIN_MS}ms` }}
+          >
+            <video
+              ref={videoLeftRef}
+              src="/intro.mp4"
+              autoPlay
+              muted
+              playsInline
+              preload="auto"
+              poster="/images/hero.jpg"
+              className="intro-video-enter absolute inset-y-0 left-0 top-0 h-full w-[200%] max-w-none object-cover object-left will-change-[filter]"
+              style={introVideoBlurStyle(introEndBlurPx, splitBlurRampPx)}
+              onPlay={() => {
+                if (logoPlayTimerRef.current) clearTimeout(logoPlayTimerRef.current)
+                logoPlayTimerRef.current = setTimeout(() => setLogoState('visible'), LOGO_ENTER_DELAY_MS)
+              }}
+              onLoadedMetadata={(e) => {
+                if (logoDurationFadeRef.current) clearTimeout(logoDurationFadeRef.current)
+                const duration = e.currentTarget.duration
+                if (!Number.isFinite(duration) || duration <= 0) return
+                const leadSec = LOGO_MOTION_MS / 1000 + 0.35
+                const ms = Math.max(0, (duration - leadSec) * 1000)
+                logoDurationFadeRef.current = setTimeout(() => setLogoState('fadeOut'), ms)
+              }}
+              onEnded={() => {
+                videoLeftRef.current?.pause()
+                videoRightRef.current?.pause()
+                if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+                  setIntroEndBlurPx(INTRO_END_BLUR_MAX_PX)
+                }
+                setLogoState('hidden')
+                if (!introSplitStartedRef.current) {
+                  introSplitStartedRef.current = true
+                  introSplitWallMsRef.current = Date.now()
+                  setSplit(true)
+                }
+                const started = introSplitWallMsRef.current ?? Date.now()
+                const elapsed = Date.now() - started
+                const wait = Math.max(
+                  INTRO_AFTER_CURTAIN_MS,
+                  INTRO_CURTAIN_MS - elapsed + 80,
+                )
+                introFadeTimer.current = setTimeout(() => {
+                  setShowIntro(false)
+                  setSplit(false)
+                  setLogoState('hidden')
+                  introSplitStartedRef.current = false
+                  introSplitWallMsRef.current = null
+                }, wait)
+              }}
+            />
+          </div>
+          <div
+            className={`relative z-10 h-full w-1/2 min-w-0 overflow-hidden bg-black transition-transform ease-[cubic-bezier(0.45,0.05,0.55,0.95)] motion-reduce:transition-none ${
+              split ? 'translate-x-full' : 'translate-x-0'
+            }`}
+            style={{ transitionDuration: `${INTRO_CURTAIN_MS}ms` }}
+          >
+            <video
+              ref={videoRightRef}
+              src="/intro.mp4"
+              autoPlay
+              muted
+              playsInline
+              preload="auto"
+              poster="/images/hero.jpg"
+              className="intro-video-enter absolute inset-y-0 left-0 top-0 h-full w-[200%] max-w-none -translate-x-1/2 object-cover object-right will-change-[filter]"
+              style={introVideoBlurStyle(introEndBlurPx, splitBlurRampPx)}
+            />
+          </div>
+          <div
+            className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4 ${split ? 'opacity-0' : ''}`}
+          >
+            <div
+              className={`relative text-center transition-all ease-in-out ${
+                logoState === 'hidden'
+                  ? 'translate-y-5 scale-[0.97] opacity-0'
+                  : logoState === 'visible'
+                    ? 'translate-y-0 scale-100 opacity-100'
+                    : 'translate-y-3 scale-[0.98] opacity-0'
+              }`}
+              style={{ transitionDuration: `${LOGO_MOTION_MS}ms` }}
+              dir="ltr"
+              lang="en"
+            >
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[220px] w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/35 blur-[48px]"
+                aria-hidden
+              />
+              <h1
+                className="relative font-didone text-[clamp(2rem,6.5vw,4.5rem)] font-semibold uppercase tracking-[0.22em] text-[#1a1a1a] md:text-[clamp(2.75rem,7vw,5.5rem)] lg:text-[clamp(3.25rem,6vw,6rem)]"
+                style={{
+                  textShadow: `
+      0 0 20px rgba(255,255,255,0.75),
+      0 0 48px rgba(255,255,255,0.55),
+      0 0 90px rgba(255,255,255,0.38),
+      0 0 120px rgba(255,255,255,0.22),
+      0 8px 22px rgba(0,0,0,0.35)
+    `,
+                }}
+              >
+                {heroWordmark}
+              </h1>
+              <p
+                className="relative mt-3 font-script text-[clamp(1.15rem,3.8vw,2rem)] italic text-[#1a1a1a]/85 md:mt-4 md:text-[clamp(1.35rem,3.2vw,2.5rem)]"
+                style={{
+                  textShadow: `
+      0 0 14px rgba(255,255,255,0.45),
+      0 0 32px rgba(255,255,255,0.28)
+    `,
+                }}
+              >
+                {site.brandEn}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

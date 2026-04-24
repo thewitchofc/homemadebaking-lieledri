@@ -10,9 +10,10 @@ import {
   type ReactNode,
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Check } from 'lucide-react'
+import { Check, ShoppingCart } from 'lucide-react'
 import { gaEvent } from '../analytics'
 import {
+  GREETING_CARD_PRODUCT_ID,
   ROLLS_PACK_SIZE,
   buildCartWhatsAppMessage,
   canSendCartWhatsAppOrder,
@@ -30,9 +31,22 @@ type CartRootState = {
   cart: CartState
   /** יחידות מגולגלות בטיוטת מארז נוכחי (מקסימום 12, אז מיזוג לעגלה ואיפוס) */
   rollsDraft: CartState
+  /** טקסט לכרטיס ברכה (עד 50 תווים) כשמוצר כרטיס בעגלה */
+  greetingCardText: string
 }
 
-type Action = { type: 'SET_QTY'; productId: number; nextQty: number }
+type Action =
+  | { type: 'SET_QTY'; productId: number; nextQty: number }
+  | { type: 'HYDRATE'; payload: CartRootState }
+  | { type: 'SET_GREETING'; text: string }
+
+function cartRootsEqual(a: CartRootState, b: CartRootState): boolean {
+  return (
+    JSON.stringify(a.cart) === JSON.stringify(b.cart) &&
+    JSON.stringify(a.rollsDraft) === JSON.stringify(b.rollsDraft) &&
+    a.greetingCardText === b.greetingCardText
+  )
+}
 
 function mergeRollsDraftIntoCart(cart: CartState, draft: CartState): CartState {
   const next = { ...cart }
@@ -59,6 +73,10 @@ function totalOrderUnits(root: CartRootState): number {
 }
 
 function reducer(state: CartRootState, action: Action): CartRootState {
+  if (action.type === 'HYDRATE') return action.payload
+  if (action.type === 'SET_GREETING') {
+    return { ...state, greetingCardText: action.text.slice(0, 50) }
+  }
   if (action.type !== 'SET_QTY') return state
   const { productId, nextQty: raw } = action
   const n = Math.max(0, Math.min(99, Math.floor(raw)))
@@ -66,9 +84,16 @@ function reducer(state: CartRootState, action: Action): CartRootState {
   if (!product) return state
 
   if (product.category !== 'rolls') {
+    const capped = productId === GREETING_CARD_PRODUCT_ID ? Math.min(1, n) : n
     const cart = { ...state.cart }
-    if (n === 0) delete cart[productId]
-    else cart[productId] = n
+    if (capped === 0) {
+      delete cart[productId]
+      if (productId === GREETING_CARD_PRODUCT_ID) {
+        return { ...state, cart, greetingCardText: '' }
+      }
+      return { ...state, cart }
+    }
+    cart[productId] = capped
     return { ...state, cart }
   }
 
@@ -90,6 +115,7 @@ function reducer(state: CartRootState, action: Action): CartRootState {
     const newSum = sumDraft(newDraft)
     if (newSum === ROLLS_PACK_SIZE) {
       return {
+        ...state,
         cart: mergeRollsDraftIntoCart(state.cart, newDraft),
         rollsDraft: {},
       }
@@ -113,7 +139,7 @@ function reducer(state: CartRootState, action: Action): CartRootState {
     if (nc <= 0) delete newCart[productId]
     else newCart[productId] = nc
   }
-  return { cart: newCart, rollsDraft: newDraft }
+  return { ...state, cart: newCart, rollsDraft: newDraft }
 }
 
 type OrderCartContextValue = {
@@ -132,11 +158,13 @@ type OrderCartContextValue = {
   /** טוסט קצר אחרי הוספת פריט (לפי עלייה ב־totalOrderUnits) */
   addToCartToastOpen: boolean
   dismissAddToCartToast: () => void
+  greetingCardText: string
+  setGreetingCardText: (text: string) => void
 }
 
 const OrderCartContext = createContext<OrderCartContextValue | null>(null)
 
-const initialRoot: CartRootState = { cart: {}, rollsDraft: {} }
+const initialRoot: CartRootState = { cart: {}, rollsDraft: {}, greetingCardText: '' }
 
 /** מפתח localStorage — גרסה בשם המפתח; ערך: { v, cart, rollsDraft } */
 const CART_STORAGE_KEY = 'cart_v1'
@@ -151,7 +179,8 @@ function sanitizeCartRecord(raw: unknown): CartState {
       const id = Number(key)
       if (!Number.isInteger(id) || !catalogIds.has(id)) continue
       if (typeof val !== 'number' || !Number.isFinite(val)) continue
-      const q = Math.floor(val)
+      let q = Math.floor(val)
+      if (id === GREETING_CARD_PRODUCT_ID) q = Math.min(1, q)
       if (q < 1 || q > 99) continue
       out[id] = q
     }
@@ -185,7 +214,9 @@ function readPersistedRoot(): CartRootState | null {
     if (obj.v !== 1) return null
     const cart = sanitizeCartRecord(obj.cart)
     const rollsDraft = sanitizeRollsDraft(sanitizeCartRecord(obj.rollsDraft))
-    return { cart, rollsDraft }
+    const greetingCardText =
+      typeof obj.greetingCardText === 'string' ? obj.greetingCardText.slice(0, 50) : ''
+    return { cart, rollsDraft, greetingCardText }
   } catch {
     return null
   }
@@ -198,6 +229,7 @@ function persistRoot(root: CartRootState): void {
       v: 1,
       cart: root.cart,
       rollsDraft: root.rollsDraft,
+      greetingCardText: root.greetingCardText,
     })
     localStorage.setItem(CART_STORAGE_KEY, payload)
   } catch {
@@ -216,6 +248,8 @@ function initOrderRoot(seed: CartRootState): CartRootState {
 
 export function OrderCartProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialRoot, initOrderRoot)
+  const stateRef = useRef(state)
+  stateRef.current = state
   const [addToCartToastOpen, setAddToCartToastOpen] = useState(false)
   const toastHideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -251,11 +285,58 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
     [state, scheduleAddToCartToastHide],
   )
 
-  const { cart, rollsDraft } = state
+  const setGreetingCardText = useCallback((text: string) => {
+    dispatch({ type: 'SET_GREETING', text })
+  }, [])
+
+  const { cart, rollsDraft, greetingCardText } = state
 
   useEffect(() => {
     persistRoot(state)
   }, [state])
+
+  /** כתיבה סינכרונית לפני רקע/סגירת לשונית — מפחית איבוד אם הדפדפן קוטע לפני ה־effect */
+  useEffect(() => {
+    const flush = () => persistRoot(stateRef.current)
+    window.addEventListener('pagehide', flush)
+    return () => window.removeEventListener('pagehide', flush)
+  }, [])
+
+  /** חזרה ללשונית / מטמון דפדפן / טאב אחר — מסנכרן מה־localStorage כדי שלא תאבד עגלה בזיכרון */
+  useEffect(() => {
+    const tryHydrateFromStorage = () => {
+      const fromDisk = readPersistedRoot()
+      if (!fromDisk) return
+      if (cartRootsEqual(stateRef.current, fromDisk)) return
+      dispatch({ type: 'HYDRATE', payload: fromDisk })
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== null && e.key !== CART_STORAGE_KEY) return
+      tryHydrateFromStorage()
+    }
+
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) tryHydrateFromStorage()
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') tryHydrateFromStorage()
+    }
+
+    const onFocus = () => tryHydrateFromStorage()
+
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('pageshow', onPageShow)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
 
   useEffect(
     () => () => {
@@ -292,6 +373,8 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       canSendCartWhatsApp,
       addToCartToastOpen,
       dismissAddToCartToast,
+      greetingCardText,
+      setGreetingCardText,
     }),
     [
       cart,
@@ -306,6 +389,8 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       canSendCartWhatsApp,
       addToCartToastOpen,
       dismissAddToCartToast,
+      greetingCardText,
+      setGreetingCardText,
     ],
   )
 
@@ -370,13 +455,21 @@ function CartAddedToast() {
             אפשר כבר לשלוח הזמנה
           </span>
         </div>
-        <button
-          type="button"
-          onClick={goToOrder}
-          className="shrink-0 rounded-lg border border-cream/35 bg-cream/15 px-2.5 py-1 text-xs font-semibold text-cream transition hover:bg-cream/25 active:opacity-90"
-        >
-          לסיום ההזמנה
-        </button>
+        <div className="inline-flex shrink-0 items-stretch overflow-hidden rounded-lg border border-cream/35 bg-cream/15 text-cream">
+          <button
+            type="button"
+            onClick={goToOrder}
+            className="px-2.5 py-1 text-xs font-semibold text-cream transition hover:bg-cream/25 active:opacity-90"
+          >
+            לסיום ההזמנה
+          </button>
+          <span
+            className="pointer-events-none flex items-center justify-center border-s border-cream/30 px-2"
+            aria-hidden
+          >
+            <ShoppingCart className="size-3.5 shrink-0" strokeWidth={2} />
+          </span>
+        </div>
       </div>
     </div>
   )

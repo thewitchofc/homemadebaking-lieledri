@@ -10,7 +10,7 @@ export const site = {
   logoWordmarkLatin: 'LIEL EDRI',
   brandEn: 'Homemade Baking',
   /** לתצוגה בלי מקפים (נוח ל־RTL) */
-  phoneDisplay: '054 319 3330',
+  phoneDisplay: '054-319-3330',
   /** לקישור חיוג ישיר */
   phoneTel: '+972543193330',
   /** מספר לוואטסאפ בלי + ובלי 0 ראשון */
@@ -18,14 +18,51 @@ export const site = {
   instagramUrl: 'https://www.instagram.com/liel.edri1/',
   instagramHandle: '@liel.edri1',
   pickupAddress: 'הקלרנית 10, ראשון לציון',
+  /** שעות איסוף עצמי — מוצג באתר ובהתאמה לחלונות בחירת השעה ב־checkout */
+  pickupWindowWedThu: '16:00–20:00 רביעי וחמישי',
+  pickupWindowFri: '10:00–16:00 שישי',
+  /** תוספת למשלוח לאזור המרכז (מחושב בסיכום ובוואטסאפ כשבוחרים משלוח ב־checkout) */
+  deliveryFeeCenterShekels: 30,
+  /** לאזור המחיר — לתצוגה ולשורה בוואטסאפ */
+  deliveryFeeCenterArea: 'מרכז הארץ',
   orderDays: 'רביעי, חמישי ושישי',
   /** כותרת בלוק קרדיט הפיתוח (זהוב) */
   devCreditHeading: 'קרדיט פיתוח',
   /** תת־כותרת (ירוק) */
   devCreditSubtitle: 'עיצוב ופיתוח אתר',
   /** לוגו סטודיו The Witch, קובץ ב־public/ */
-  devLogoMark: '/the-witch-dev-logo.png?v=1',
+  devLogoMark: '/the-witch-dev-logo.jpg?v=3',
 } as const
+
+/** כותרת, תיאור ותמונת OG ברירת מחדל (מנועי חיפוש ושיתוף) */
+export const siteSeo = {
+  defaultTitle: 'ליאל אדרי — אפייה ביתית | Homemade Baking',
+  defaultDescription:
+    'קינוחי בוטיק ביתיים של ליאל אדרי — מארזים, עוגיות, מגולגלות ועוד. הזמנה דרך האתר ווואטסאפ, איסוף בראשון לציון ומשלוח למרכז הארץ בתיאום.',
+  defaultOgTitle: 'LIEL EDRI — Homemade Baking',
+  defaultOgDescription: 'מארזי מתוקים בהזמנה אישית — איסוף ומשלוח בתיאום',
+  /** קובץ ב־public/ לתצוגת תצוגה מקדימה בשיתוף */
+  defaultOgImagePath: '/hero-swirl-cookies.png',
+} as const
+
+export function getPublicSiteOrigin(): string {
+  const fromEnv = import.meta.env.VITE_PUBLIC_SITE_URL
+  if (typeof fromEnv === 'string' && fromEnv.startsWith('http')) {
+    return fromEnv.replace(/\/$/, '')
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
+  }
+  return ''
+}
+
+export function absoluteUrlFromPath(path: string): string {
+  const origin = getPublicSiteOrigin()
+  if (!path) return origin
+  if (path.startsWith('http')) return path
+  const p = path.startsWith('/') ? path : `/${path}`
+  return origin ? `${origin}${p}` : p
+}
 
 export function whatsappLink(message: string): string {
   const q = encodeURIComponent(message)
