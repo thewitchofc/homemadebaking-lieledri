@@ -40,13 +40,9 @@ export default function HomePage() {
 
   return (
     <main id="main" className="page main">
-      <div className="relative min-h-[100svh] overflow-hidden bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_60%,#e9e1d8_100%)]">
+      <div className="relative min-h-[100svh] overflow-hidden bg-cream">
         <div
           className="pointer-events-none absolute top-[-15%] left-1/2 h-[900px] w-[900px] -translate-x-1/2 rounded-full bg-white/30 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute bottom-[-20%] right-[-10%] h-[800px] w-[800px] rounded-full bg-black/5 blur-3xl"
           aria-hidden
         />
         <div

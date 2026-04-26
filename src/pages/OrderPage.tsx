@@ -17,13 +17,7 @@ import { DocumentMeta } from '../components/DocumentMeta'
 import { defaultWaMessage, site } from '../siteConfig'
 import { ProductCatalog } from '../components/ProductCatalog'
 import { WaButton } from '../components/WaButton'
-import {
-  premiumActionButtonClass,
-  sectionBodyClass,
-  sectionInner,
-  sectionShell,
-  sectionTitleToContentClass,
-} from '../sectionLayout'
+import { sectionBodyClass, sectionInner, sectionShell, sectionTitleToContentClass } from '../sectionLayout'
 
 const orderCategories = [
   { id: 'greeting-card-row', label: 'כרטיס ברכה' },
@@ -32,7 +26,6 @@ const orderCategories = [
   { id: 'catalog-crumbleCookies', label: 'קראמבל' },
   { id: 'catalog-cakes', label: 'עוגות' },
   { id: 'catalog-giantCrumbleDesign', label: 'עוגות בעיצוב אישי' },
-  { id: 'order-steps', label: 'איך מזמינים' },
 ] as const
 
 /** יישור גלילה לעוגנים מתחת ל־header + סרגל קטגוריות */
@@ -120,9 +113,9 @@ export default function OrderPage() {
   return (
     <main
       id="main"
-      className={`relative z-[1] min-h-0 bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_100%)] ${
+      className={`relative z-[1] min-h-0 bg-cream ${
         showCartChrome
-          ? 'pb-[max(6.5rem,calc(env(safe-area-inset-bottom)+5.25rem))] sm:pb-24'
+          ? 'pb-[max(4rem,calc(env(safe-area-inset-bottom)+3.5rem))] sm:pb-24'
           : 'pb-[env(safe-area-inset-bottom)]'
       }`}
     >
@@ -146,14 +139,6 @@ export default function OrderPage() {
         aria-hidden
       />
       <div
-        className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[linear-gradient(180deg,rgba(247,243,238,0.14)_0%,transparent_28%,transparent_72%,rgba(239,231,223,0.22)_100%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(42,32,26,0.045)_100%)]"
-        aria-hidden
-      />
-      <div
         className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[url('/noise.png')] bg-repeat opacity-[0.025] mix-blend-multiply"
         aria-hidden
       />
@@ -169,7 +154,7 @@ export default function OrderPage() {
         className="sticky top-[var(--header-h)] z-40 border-b border-cream-dark/40 bg-white/90 backdrop-blur-sm"
         aria-label="ניווט קטגוריות בתפריט המתוקים"
       >
-        <div className="flex touch-pan-x gap-1 overflow-x-auto no-scrollbar px-2 py-2 scroll-smooth [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:justify-center sm:overflow-x-visible sm:px-3 sm:py-3">
+        <div className="flex touch-pan-x gap-2 overflow-x-auto px-3 py-2.5 no-scrollbar scroll-smooth [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:justify-center sm:gap-2.5 sm:overflow-x-visible sm:px-4 sm:py-3">
           {orderCategories.map((cat) => {
             const isActive = activeCategory === cat.id
             return (
@@ -183,10 +168,11 @@ export default function OrderPage() {
                 aria-current={isActive ? true : undefined}
                 onClick={() => scrollToCategory(cat.id)}
                 className={`
-                  relative shrink-0 touch-manipulation whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium
+                  relative shrink-0 touch-manipulation whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium
                   transition-all duration-300
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa/40
                   active:scale-[0.98]
+                  sm:px-4 sm:py-2 sm:text-sm
                   ${isActive ? 'text-cream' : 'text-ink/70 hover:text-ink'}
                 `}
               >
@@ -235,48 +221,6 @@ export default function OrderPage() {
           </div>
         </div>
       </div>
-
-      <section
-        id="order-steps"
-        data-category-section
-        className={`scroll-mt-[100px] ${orderSectionScrollMtClass} border-b border-cream-dark/40 bg-cream ${sectionShell}`}
-      >
-        <div className={sectionInner}>
-          <h2 className="text-center font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
-            איך מזמינים
-          </h2>
-          <ol className={`grid gap-6 sm:grid-cols-3 ${sectionTitleToContentClass}`}>
-            {[
-              {
-                step: '1',
-                title: 'לבנות הזמנה בסל',
-                desc: 'בוחרים מוצרים, כמויות וטעמים, ומרכיבים את ההזמנה בעגלה בעמוד תפריט המתוקים.',
-              },
-              {
-                step: '2',
-                title: 'לשלוח את ההזמנה',
-                desc: 'כשהכל מוכן, שולחים את סיכום העגלה בוואטסאפ ישירות ממסך תפריט המתוקים.',
-              },
-              {
-                step: '3',
-                title: 'פתרון',
-                desc: 'מקבלים אישור והזמנה מסודרת, נשאר רק לחכות לקינוח.',
-              },
-            ].map((s) => (
-              <li
-                key={s.step}
-                className="flex flex-col gap-4 rounded-xl border border-cream-dark bg-cream p-4 text-center shadow-sm sm:p-4"
-              >
-                <span className="mx-auto flex size-10 shrink-0 items-center justify-center rounded-full bg-cocoa font-display text-lg font-semibold text-gold">
-                  {s.step}
-                </span>
-                <h3 className="text-sm font-semibold text-ink sm:text-base">{s.title}</h3>
-                <p className="text-sm text-ink-muted sm:text-base">{s.desc}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
 
       <section
         id="order-details"
@@ -331,26 +275,27 @@ export default function OrderPage() {
       {showCartChrome ? (
         <div
           id="order-cart-bar"
-          className="fixed inset-x-0 bottom-0 z-[55] rounded-t-xl border-t border-cream-dark/45 bg-cream pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+          className="fixed bottom-0 left-0 right-0 z-40 flex flex-col border-t border-cream-dark/40 bg-white/95 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-sm"
           role="status"
           aria-live="polite"
         >
-          <div className="mx-auto flex max-w-6xl flex-col gap-2 ps-4 pe-[max(1rem,calc(env(safe-area-inset-right)+4.25rem))] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pe-24">
-            <p className="min-w-0 truncate text-center font-display text-base font-semibold tabular-nums text-ink sm:text-start sm:text-lg md:text-xl">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
+            <p className="min-w-0 flex-1 truncate text-sm font-medium tabular-nums text-ink">
               סה״כ להזמנה ₪{cartBarOrderTotal}
             </p>
             {canProceedToCheckout ? (
               <Link
                 to="/checkout"
-                className={`${premiumActionButtonClass} min-h-11 w-full shrink-0 justify-center ps-5 pe-4 sm:w-auto sm:pe-5`}
+                className="inline-flex shrink-0 touch-manipulation items-center justify-center gap-1.5 rounded-full bg-cocoa px-4 py-2 text-sm font-medium text-cream transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep active:scale-[0.98]"
               >
-                <span>לסיום ההזמנה</span>
-                <ShoppingCart className="size-[1.1rem] shrink-0 opacity-90 sm:size-5" strokeWidth={2} aria-hidden />
+                <span className="max-sm:hidden">לסיום ההזמנה</span>
+                <span className="sm:hidden">לסיום</span>
+                <ShoppingCart className="size-3.5 shrink-0 opacity-90" strokeWidth={2} aria-hidden />
               </Link>
             ) : (
               <button
                 type="button"
-                className="inline-flex min-h-11 w-full shrink-0 touch-manipulation items-center justify-center rounded-full border border-cream-dark/80 bg-cream-dark/45 px-4 py-2 text-sm font-semibold text-ink/90 transition active:bg-cream-dark/65 sm:w-auto"
+                className="inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full bg-cocoa px-4 py-2 text-sm font-medium text-cream transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep active:scale-[0.98]"
                 onClick={() => {
                   const id = hasRollsPackMismatch
                     ? 'catalog-rolls'
@@ -363,12 +308,12 @@ export default function OrderPage() {
             )}
           </div>
           {cartBarLineCount > 0 ? (
-            <p className="mt-1.5 px-4 pb-0.5 text-center text-sm font-medium text-ink/90">
+            <p className="mt-1.5 line-clamp-2 text-center text-[11px] font-medium leading-snug text-ink/80">
               {hasRollsPackMismatch
                 ? `יש להשלים מארז מגולגלות ל־${ROLLS_PACK_SIZE} יחידות (או מכפלות של ${ROLLS_PACK_SIZE}) לפני מעבר לסל.`
                 : hasCrumblePackMismatch
                   ? 'יש להתאים את כמות קראמבל למארזי 4 ו־6 בלבד (למשל 4, 6, 8, 10, 12…; לא 5, 7, 9).'
-                  : 'מעולה, ההזמנה התחילה. אפשר להוסיף עוד משהו קטן.'}
+                  : 'מעולה — אפשר להמשיך להוסיף או לעבור לסיום.'}
             </p>
           ) : null}
         </div>

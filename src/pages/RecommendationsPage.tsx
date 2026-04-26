@@ -14,7 +14,7 @@ export default function RecommendationsPage() {
       />
       <main
         id="main"
-        className="relative z-[1] overflow-x-hidden bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_100%)]"
+        className="relative z-[1] overflow-x-hidden bg-cream"
       >
         <div
           className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0"
@@ -33,14 +33,6 @@ export default function RecommendationsPage() {
         </div>
         <div
           className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[radial-gradient(ellipse_at_center,rgba(255,252,248,0.42)_0%,rgba(255,252,248,0.12)_42%,transparent_62%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[linear-gradient(180deg,rgba(247,243,238,0.25)_0%,transparent_28%,transparent_72%,rgba(239,231,223,0.35)_100%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(42,32,26,0.08)_100%)]"
           aria-hidden
         />
         <div
@@ -63,11 +55,17 @@ export default function RecommendationsPage() {
           <h2 id="recommendations-gallery-heading" className={sectionTitleClass}>
             גלריית תמונות
           </h2>
-          <ul className={`grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 ${sectionTitleToContentClass}`}>
+          <ul
+            className={`grid grid-cols-2 gap-2.5 sm:gap-4 md:gap-6 lg:grid-cols-3 ${sectionTitleToContentClass}`}
+          >
             {recommendationCards.map((item, i) => (
-              <li key={item.src} className="mx-auto min-w-0 w-full max-w-[15.5rem] sm:max-w-[16.5rem] lg:max-w-[17rem]">
+              <li
+                key={item.src}
+                className="min-w-0 w-full lg:mx-auto lg:max-w-[17rem]"
+              >
                 <article className={photoCardClass}>
-                  <div className="relative aspect-[9/16] w-full overflow-hidden">
+                  {/** במובייל: 2 עמודות + יחס נמוך יותר כדי שייכנסו כמה המלצות במסך; בדסקטופ נשאר פורמט סטוריז */}
+                  <div className="relative aspect-[3/4] w-full overflow-hidden lg:aspect-[9/16]">
                     <img
                       src={item.src}
                       alt={`תמונת המלצה ${i + 1} מתוך ${recommendationCards.length}`}

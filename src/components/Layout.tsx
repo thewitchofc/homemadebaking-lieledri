@@ -96,6 +96,16 @@ export function Layout() {
     if (!hasSeen) setShowIntroVideo(true)
   }, [pathname])
 
+  /** GA4 — צפיית עמוד בכל מעבר ניווט (SPA); אם gtag לא נטען (אין מזהה / חסימה) מתעלמים */
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const g = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag
+    if (typeof g !== 'function') return
+    g('event', 'page_view', {
+      page_path: pathname,
+    })
+  }, [pathname])
+
   return (
     <div className="layout bg-cream text-ink-muted">
       <a
@@ -106,9 +116,9 @@ export function Layout() {
       </a>
 
       <header
-        className={`header sticky top-0 z-50 border-b border-cream-dark/80 bg-cream/95${isCheckout ? ' border-b-0' : ''}`}
+        className={`header sticky top-0 z-50 border-b border-cream-dark/80 bg-cream${isCheckout ? ' border-b-0' : ''}`}
       >
-        <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-6 sm:py-3">
+        <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-3 px-3 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
           {isCheckout ? (
             <>
               <Link
@@ -135,7 +145,7 @@ export function Layout() {
                 dir="ltr"
                 aria-label={`עמוד הבית, ${site.brandHe}`}
               >
-                <HeaderWordmark className="max-w-[min(420px,72vw)] text-base leading-none sm:max-w-[min(420px,78vw)] sm:text-xl md:text-2xl lg:text-3xl xl:text-[2.35rem]" />
+                <HeaderWordmark className="max-w-[min(380px,62vw)] text-[0.95rem] leading-none sm:max-w-[min(420px,78vw)] sm:text-xl md:text-2xl lg:text-3xl xl:text-[2.35rem]" />
               </Link>
 
               <nav className="hidden items-center gap-8 md:flex" aria-label="ניווט ראשי">
@@ -157,21 +167,21 @@ export function Layout() {
                 )}
               </nav>
 
-              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+              <div className="flex shrink-0 items-center gap-2 sm:gap-2">
                 <WaButton
                   message={defaultWaMessage}
-                  className="!gap-1.5 !py-2 !px-3 !text-xs sm:!gap-2 sm:!py-2.5 sm:!px-4 sm:!text-sm sm:!px-6 [&_svg]:!size-4 sm:[&_svg]:!size-[1.35rem]"
+                  className="!gap-1.5 !py-2 !px-3 !text-xs max-sm:[&_svg]:!size-4 sm:!gap-2 sm:!py-2.5 sm:!px-4 sm:!text-sm sm:!px-6 [&_svg]:!size-4 sm:[&_svg]:!size-[1.35rem]"
                 >
                   וואטסאפ
                 </WaButton>
                 <button
                   type="button"
-                  className="rounded-full border border-cream-dark p-2 text-ink sm:p-2.5 md:hidden"
+                  className="flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-cream-dark/90 bg-white/80 text-ink shadow-sm active:bg-cream-dark/30 md:hidden"
                   onClick={() => setMenuOpen(true)}
                   aria-expanded={menuOpen}
                   aria-label="פתח תפריט"
                 >
-                  <Menu className="size-[1.05rem] sm:size-5" />
+                  <Menu className="size-5" strokeWidth={2} />
                 </button>
               </div>
             </>
@@ -186,30 +196,33 @@ export function Layout() {
           />
         )}
         <div
-          className={`fixed inset-y-0 left-0 z-[70] w-[min(100%,min(280px,88vw))] transform border-r border-cream-dark bg-cream shadow-2xl transition-transform duration-300 ease-out sm:w-[min(100%,320px)] md:hidden ${
+          className={`fixed inset-y-0 left-0 z-[70] flex w-[min(100%,20rem)] max-w-[calc(100vw-1rem)] flex-col transform border-r border-cream-dark/60 bg-cream shadow-2xl transition-transform duration-300 ease-out sm:w-[min(100%,22rem)] md:hidden ${
             !isCheckout && menuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="flex items-center justify-between gap-2 border-b border-cream-dark px-3 py-2.5 sm:px-4 sm:py-3">
-            <div className="flex min-w-0 flex-col items-center justify-center text-center" dir="ltr">
-              <LatinWordmark className="max-w-[min(180px,50vw)] text-sm leading-none sm:max-w-[min(200px,55vw)] sm:text-base" />
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-cream-dark/50 px-4 py-4">
+            <div className="flex min-w-0 flex-1 flex-col items-start justify-center ps-1 text-start" dir="ltr">
+              <LatinWordmark className="max-w-full text-base font-medium leading-tight sm:text-lg" />
             </div>
             <button
               type="button"
               onClick={() => setMenuOpen(false)}
-              className="rounded-full p-1.5 text-ink sm:p-2"
+              className="flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-cream-dark/70 bg-white/90 text-ink shadow-sm active:bg-cream-dark/35"
               aria-label="סגור תפריט"
             >
-              <X className="size-4 sm:size-5" />
+              <X className="size-5" strokeWidth={2} />
             </button>
           </div>
-          <nav className="flex flex-col gap-0.5 p-3 sm:gap-1 sm:p-4" aria-label="ניווט נייד">
+          <nav
+            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+            aria-label="ניווט נייד"
+          >
             {mainNav.map((n) =>
               n.to.startsWith('/#') ? (
                 <Link
                   key={n.id}
                   to={n.to}
-                  className="rounded-lg px-2.5 py-2 text-sm font-medium text-ink sm:px-3 sm:py-3 sm:text-base"
+                  className="rounded-xl border border-transparent px-4 py-3.5 text-base font-medium leading-snug text-ink transition active:bg-cream-dark/50 sm:py-4"
                   onClick={() => setMenuOpen(false)}
                 >
                   {n.label}
@@ -221,19 +234,25 @@ export function Layout() {
                   end={n.end}
                   onClick={() => setMenuOpen(false)}
                   className={({ isActive }) =>
-                    `rounded-lg px-2.5 py-2 text-sm font-medium sm:px-3 sm:py-3 sm:text-base ${isActive ? 'bg-cream-dark/40 text-ink' : 'text-ink'}`
+                    `rounded-xl border px-4 py-3.5 text-base font-medium leading-snug transition sm:py-4 ${
+                      isActive
+                        ? 'border-cream-dark/50 bg-cream-dark/35 text-ink shadow-sm'
+                        : 'border-transparent text-ink active:bg-cream-dark/40'
+                    }`
                   }
                 >
                   {n.label}
                 </NavLink>
               ),
             )}
-            <WaButton
-              message={defaultWaMessage}
-              className="mt-3 w-full !py-2.5 !px-4 !text-sm sm:mt-4 sm:!py-3.5 sm:!text-[15px]"
-            >
-              דברו איתי בוואטסאפ
-            </WaButton>
+            <div className="mt-4 border-t border-cream-dark/40 pt-4">
+              <WaButton
+                message={defaultWaMessage}
+                className="w-full !justify-center !gap-2 !py-3.5 !px-4 !text-base !font-medium sm:!py-4 [&_svg]:!size-5"
+              >
+                דברו איתי בוואטסאפ
+              </WaButton>
+            </div>
           </nav>
         </div>
       </header>
@@ -248,9 +267,9 @@ export function Layout() {
         />
       ) : null}
 
-      {!isCheckout ? (
+      {!isCheckout && !isOrder ? (
         <div
-          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-[85] flex flex-col gap-2 sm:gap-3"
+          className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-[85] hidden flex-col gap-2 sm:flex sm:gap-3"
           aria-label="קיצור דרך לוואטסאפ"
         >
           <a

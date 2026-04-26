@@ -40,7 +40,7 @@ const catalogPlusFocusClass =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep'
 
 const catalogPlusButtonClass = `
-  relative isolate flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center
+  relative isolate flex h-8 w-8 shrink-0 touch-manipulation items-center justify-center
   overflow-hidden rounded-full bg-cocoa text-cream
   sm:h-9 sm:w-9
   transition-all duration-200
@@ -49,14 +49,14 @@ const catalogPlusButtonClass = `
   ${catalogPlusFocusClass}
 `.replace(/\s+/g, ' ').trim()
 
-/** כפתור + צף על תמונת כרטיס — נוח ללחיצה במובייל */
-const catalogPlusCardOverlayClass = `
-  absolute left-2 top-2 z-10 isolate
-  flex h-10 w-10 shrink-0 touch-manipulation items-center justify-center
-  overflow-hidden rounded-full bg-cocoa text-cream
-  sm:h-9 sm:w-9
+/** כפתור + על הכרטיס (מובייל: 7×7; מ־sm: מעל התמונה) */
+const catalogPlusOnCardClass = `
+  absolute top-2 right-2 z-20 isolate
+  flex h-7 w-7 shrink-0 touch-manipulation items-center justify-center
+  overflow-hidden rounded-full bg-cocoa text-cream text-xs
+  sm:left-2 sm:right-auto sm:top-2 sm:h-9 sm:w-9 sm:text-base
   transition
-  hover:scale-110 active:scale-95
+  hover:scale-110 active:scale-95 max-sm:hover:scale-100
   disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100
   ${catalogPlusFocusClass}
 `.replace(/\s+/g, ' ').trim()
@@ -68,7 +68,7 @@ function CatalogPlusButton({
   disabled,
   onPointerDown,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { visual?: 'default' | 'cardOverlay' }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { visual?: 'default' | 'onCard' }) {
   const [rippleKey, setRippleKey] = useState<number | null>(null)
   const clearRipple = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -90,9 +90,9 @@ function CatalogPlusButton({
     onPointerDown?.(e)
   }
 
-  const baseClass = visual === 'cardOverlay' ? catalogPlusCardOverlayClass : catalogPlusButtonClass
+  const baseClass = visual === 'onCard' ? catalogPlusOnCardClass : catalogPlusButtonClass
   const rippleClass =
-    visual === 'cardOverlay'
+    visual === 'onCard'
       ? 'bg-white/30 motion-safe:animate-[plus-ripple_0.48s_ease-out_forwards]'
       : 'bg-cream/35 motion-safe:animate-[plus-ripple_0.48s_ease-out_forwards]'
 
@@ -141,7 +141,7 @@ function GreetingCardCatalogRow({
       data-category-section
       className={`scroll-mt-[100px] mx-auto w-full max-w-md sm:max-w-lg ${scrollMtClass}`}
     >
-      <article className="flex w-full items-center gap-2.5 rounded-xl bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:gap-3">
+      <article className="flex w-full items-start gap-2.5 rounded-xl bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:items-center sm:gap-3">
         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-cream-dark/35 bg-white/80 sm:h-14 sm:w-14">
           <img
             src={catalogImageUrl(p.imageFile)}
@@ -166,7 +166,7 @@ function GreetingCardCatalogRow({
             <div className="flex shrink-0 items-center gap-1">
               {qty < 1 ? (
                 <CatalogPlusButton aria-label={`הוספת ${p.title} להזמנה`} onClick={() => bump(1)}>
-                  <Plus className="size-4" strokeWidth={2} aria-hidden />
+                  <Plus className="size-3.5" strokeWidth={2} aria-hidden />
                 </CatalogPlusButton>
               ) : (
                 <>
@@ -182,7 +182,7 @@ function GreetingCardCatalogRow({
                     {qty}
                   </span>
                   <CatalogPlusButton aria-label="כבר נוסף — כרטיס אחד בלבד" disabled>
-                    <Plus className="size-4" strokeWidth={2} aria-hidden />
+                    <Plus className="size-3.5" strokeWidth={2} aria-hidden />
                   </CatalogPlusButton>
                 </>
               )}
@@ -352,17 +352,21 @@ function ProductCard({
   }
 
   const featuredAccent = p.featured ? 'ring-1 ring-inset ring-gold-deep/25' : ''
+  /** דף הזמנה במובייל — כרטיס קומפקטי */
+  const compactOrderMobile = Boolean(dense && orderMode)
 
   const priceLine =
     p.category === 'rolls' ? null : (
       <p
         className={
-          dense
-            ? 'text-[11px] tabular-nums text-ink/60 sm:text-xs'
-            : 'text-xs text-ink/[0.69] tabular-nums sm:text-sm'
+          compactOrderMobile
+            ? 'text-center text-[11px] font-normal tabular-nums leading-tight text-ink/60 sm:text-xs sm:text-ink/60'
+            : dense
+              ? 'text-[11px] tabular-nums text-ink/60 sm:text-xs'
+              : 'text-xs text-ink/[0.69] tabular-nums sm:text-sm'
         }
       >
-        <span className={dense ? 'text-ink/50' : 'text-ink/50'}>
+        <span className={compactOrderMobile ? 'hidden sm:inline' : dense ? 'text-ink/50' : 'text-ink/50'}>
           {p.id === GREETING_CARD_PRODUCT_ID
             ? 'תוספת · '
             : isCookiesCategory
@@ -371,27 +375,50 @@ function ProductCard({
         </span>
         ₪{p.price}
         {p.priceLabel ? (
-          <span className={dense ? 'text-ink/50' : 'text-ink/55'}> ({p.priceLabel})</span>
+          <span className={compactOrderMobile ? 'text-ink/55 sm:text-ink/50' : dense ? 'text-ink/50' : 'text-ink/55'}>
+            {' '}
+            ({p.priceLabel})
+          </span>
         ) : null}
       </p>
     )
 
+  const mediaShell =
+    compactOrderMobile
+      ? 'max-sm:relative max-sm:aspect-auto max-sm:min-h-0 max-sm:shrink-0 max-sm:overflow-visible sm:aspect-square'
+      : 'aspect-square'
+  const mediaInner =
+    compactOrderMobile
+      ? 'max-sm:relative max-sm:flex max-sm:min-h-0 max-sm:items-center max-sm:justify-center max-sm:overflow-visible max-sm:py-1 sm:absolute sm:inset-0 sm:overflow-hidden'
+      : 'absolute inset-0 overflow-hidden'
+  const mediaFlex =
+    compactOrderMobile
+      ? 'max-sm:flex max-sm:min-h-0 max-sm:w-full max-sm:items-center max-sm:justify-center sm:flex sm:h-full sm:min-h-0 sm:w-full sm:items-center sm:justify-center'
+      : 'flex h-full min-h-0 w-full items-center justify-center'
+  const compactImg = compactOrderMobile
+    ? ' max-sm:!mb-1 max-sm:!h-20 max-sm:!w-20 max-sm:!max-h-20 max-sm:!max-w-20 max-sm:!object-contain'
+    : ''
+  const rollImgClass = `product-card-media${isSideCakeFix ? ' side-cake-fix' : ''}${compactImg}`
+  const cookieImgClass = `product-card-media${compactImg}`
+
   return (
     <article
-      className={`product-card group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-cream-dark/40 bg-white/90 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg ${showFullCookie ? 'product-card--full-cookie' : ''}${isCrumbleCategory ? ' product-card--crumble-single' : ''} ${featuredAccent}`}
+      className={`product-card group flex h-full w-full flex-col overflow-hidden rounded-2xl border border-cream-dark/40 bg-white/90 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg ${compactOrderMobile ? 'product-card--order-compact max-sm:relative max-sm:flex max-sm:min-h-0 max-sm:flex-col max-sm:items-center max-sm:justify-between max-sm:overflow-visible max-sm:rounded-xl max-sm:border max-sm:border-cream-dark/20 max-sm:bg-white max-sm:p-2 max-sm:shadow-none max-sm:backdrop-blur-none max-sm:hover:translate-y-0 max-sm:hover:shadow-none' : ''} ${showFullCookie ? 'product-card--full-cookie' : ''}${isCrumbleCategory ? ' product-card--crumble-single' : ''} ${featuredAccent}${compactOrderMobile ? ' max-sm:!ring-0' : ''}`}
     >
       <div
-        className={`relative aspect-square overflow-hidden sm:aspect-[4/3] ${
-          isGiantCrumbleCategory ? 'bg-white' : 'bg-cream-dark/15'
+        className={`relative overflow-hidden sm:aspect-[4/3] ${mediaShell} ${
+          isGiantCrumbleCategory ? 'bg-white' : compactOrderMobile ? 'max-sm:bg-transparent bg-cream-dark/15' : 'bg-cream-dark/15'
         }`}
       >
         {showFullCookie ? (
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="flex h-full min-h-0 w-full items-center justify-center transition-transform duration-500 ease-out will-change-transform group-hover:scale-105">
+          <div className={mediaInner}>
+            <div
+              className={`${mediaFlex} transition-transform duration-500 ease-out will-change-transform group-hover:scale-105 max-sm:group-hover:scale-100`}
+            >
               <img
                 src={catalogImageUrl(p.imageFile)}
                 alt={p.title}
-                className="product-card-media"
+                className={cookieImgClass}
                 style={fullCookieImgStyle}
                 width={600}
                 height={450}
@@ -401,12 +428,14 @@ function ProductCard({
             </div>
           </div>
         ) : (
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="flex h-full min-h-0 w-full items-center justify-center transition-transform duration-500 ease-out will-change-transform group-hover:scale-105">
+          <div className={mediaInner}>
+            <div
+              className={`${mediaFlex} transition-transform duration-500 ease-out will-change-transform group-hover:scale-105 max-sm:group-hover:scale-100`}
+            >
               <img
                 src={catalogImageUrl(p.imageFile)}
                 alt={p.title}
-                className={`product-card-media${isSideCakeFix ? ' side-cake-fix' : ''}`}
+                className={rollImgClass}
                 style={rollCakeImgStyle}
                 width={600}
                 height={450}
@@ -416,25 +445,29 @@ function ProductCard({
             </div>
           </div>
         )}
-        {orderMode && qty < 1 ? (
-          <CatalogPlusButton
-            visual="cardOverlay"
-            aria-label={`הוספה לסל — ${p.title}`}
-            onClick={() => bumpQty(1)}
-          >
-            <Plus className="size-4 text-cream sm:size-3.5" strokeWidth={2} aria-hidden />
-          </CatalogPlusButton>
-        ) : null}
       </div>
+      {orderMode && qty < 1 ? (
+        <CatalogPlusButton
+          visual={dense ? 'onCard' : 'default'}
+          aria-label={`הוספה לסל — ${p.title}`}
+          onClick={() => bumpQty(1)}
+        >
+          <Plus className="size-3 text-cream sm:size-3.5" strokeWidth={2} aria-hidden />
+        </CatalogPlusButton>
+      ) : null}
       <div
-        className={`flex min-h-0 flex-1 flex-col ${dense ? 'gap-1.5 p-2 sm:gap-2 sm:p-3' : 'gap-2 px-2 pb-3 pt-0 sm:gap-2.5 sm:px-3 sm:pb-4'}`}
+        className={`flex flex-1 flex-col ${compactOrderMobile ? 'max-sm:w-full max-sm:min-h-0 max-sm:justify-end max-sm:gap-1.5 max-sm:p-0 sm:gap-2 sm:p-3' : dense ? 'gap-2 p-2.5 sm:gap-2 sm:p-3' : 'gap-2 px-2 pb-3 pt-0 sm:gap-2.5 sm:px-3 sm:pb-4'}`}
       >
         <div
-          className={`space-y-1 text-center ${dense ? 'px-0 py-0' : 'p-3'} ${p.category === 'rolls' ? 'border-b border-cream-dark/40' : ''}`}
+          className={`shrink-0 space-y-1 text-center ${dense ? 'px-0 py-0' : 'p-3'} ${p.category === 'rolls' ? 'border-b border-cream-dark/40 max-sm:border-0 sm:border-b' : ''}`}
         >
           <h4
             className={
-              dense ? 'text-xs font-medium text-ink sm:text-sm' : 'text-sm font-medium text-ink'
+              dense
+                ? compactOrderMobile
+                  ? 'text-xs font-medium text-ink max-sm:min-h-[32px] max-sm:text-center max-sm:leading-tight max-sm:line-clamp-2 sm:min-h-0 sm:text-sm sm:leading-normal'
+                  : 'text-xs font-medium leading-snug text-ink sm:text-sm sm:leading-normal'
+                : 'text-sm font-medium text-ink'
             }
           >
             {p.title}
@@ -442,7 +475,11 @@ function ProductCard({
           {p.cardSubtitle ? (
             <p
               className={
-                dense ? 'text-[11px] leading-snug text-ink/65 sm:text-xs' : 'text-xs leading-snug text-ink/65'
+                compactOrderMobile
+                  ? 'hidden text-[11px] leading-snug text-ink/65 sm:block sm:text-xs'
+                  : dense
+                    ? 'text-[11px] leading-snug text-ink/65 sm:text-xs'
+                    : 'text-xs leading-snug text-ink/65'
               }
             >
               {p.cardSubtitle}
@@ -452,18 +489,18 @@ function ProductCard({
         </div>
         {hasDesc ? (
           <p
-            className={`text-start leading-relaxed text-ink-muted ${dense ? 'px-0 text-sm sm:text-base' : 'px-3 text-xs sm:text-sm'} ${compactCard ? '' : 'flex-1'}`}
+            className={`text-start leading-relaxed text-ink-muted ${dense ? 'px-0 text-sm sm:text-base' : 'px-3 text-xs sm:text-sm'} ${compactOrderMobile ? 'max-sm:hidden sm:block' : ''} ${compactOrderMobile ? (compactCard ? '' : 'sm:flex-1') : compactCard ? '' : 'flex-1'}`}
           >
             {p.desc}
           </p>
         ) : (
-          <div className="min-h-0 flex-1" aria-hidden />
+          <div className={`min-h-0 flex-1 ${compactOrderMobile ? 'max-sm:hidden' : ''}`} aria-hidden />
         )}
 
         {orderMode ? (
           qty >= 1 ? (
             <div
-              className={`flex min-w-0 items-center justify-center gap-1 rounded-lg border border-cream-dark/90 bg-cream-dark/35 p-1 sm:gap-2 sm:rounded-xl sm:p-1.5 ${compactCard ? 'mt-1 sm:mt-1.5' : 'mt-1.5 sm:mt-2'}`}
+              className={`flex min-w-0 shrink-0 items-center justify-center gap-1 rounded-lg border border-cream-dark/90 bg-cream-dark/35 p-1 sm:gap-2 sm:rounded-xl sm:p-1.5 ${compactCard ? 'mt-1 sm:mt-1.5' : 'mt-1.5 sm:mt-2'}`}
             >
               <button
                 type="button"
@@ -471,7 +508,7 @@ function ProductCard({
                 onClick={() => bumpQty(-1)}
                 className={`${stepMinusClassName} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep`}
               >
-                <Minus className="size-4 sm:size-5" strokeWidth={2} aria-hidden />
+                <Minus className="size-3.5 sm:size-5" strokeWidth={2} aria-hidden />
               </button>
               <span
                 className="min-w-[2.25rem] shrink-0 text-center font-display text-sm font-semibold tabular-nums text-ink sm:min-w-[2.5rem] sm:text-lg"
@@ -484,7 +521,7 @@ function ProductCard({
                 disabled={qty >= 99}
                 onClick={() => bumpQty(1)}
               >
-                <Plus className="size-4 sm:size-5" strokeWidth={2} aria-hidden />
+                <Plus className="size-3.5 sm:size-5" strokeWidth={2} aria-hidden />
               </CatalogPlusButton>
             </div>
           ) : null
@@ -523,32 +560,39 @@ function CatalogQuickPickStrip({
 
   return (
     <div
-      className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink/60"
+      className="mx-auto flex w-full max-w-md flex-col gap-3 text-xs text-ink/60 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-2 sm:gap-y-1"
       aria-label="המלצות מהירות"
     >
-      <span className="shrink-0">לא בטוחים?</span>
-      <span className="text-ink/40" aria-hidden>
-        ·
-      </span>
-      <span className="shrink-0">הכי מוזמנים:</span>
-      {picks.map((p) => {
-        const q = lineQty(p)
-        return (
-          <span key={p.id} className="inline-flex max-w-full items-center gap-1">
-            <CatalogPlusButton
-              aria-label={`הוספה: ${p.title}`}
-              disabled={q >= 99}
-              onClick={() => onChangeQty(p.id, q + 1)}
+      <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center leading-snug">
+        <span className="shrink-0">לא בטוחים?</span>
+        <span className="text-ink/40" aria-hidden>
+          ·
+        </span>
+        <span className="shrink-0">הכי מוזמנים:</span>
+      </p>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-2 sm:gap-y-1">
+        {picks.map((p) => {
+          const q = lineQty(p)
+          return (
+            <div
+              key={p.id}
+              className="flex w-full items-center gap-2.5 rounded-lg bg-white/60 px-2 py-1.5 sm:w-auto sm:max-w-[min(100%,14rem)] sm:bg-transparent sm:px-0 sm:py-0"
             >
-              <Plus className="size-4" strokeWidth={2.5} aria-hidden />
-            </CatalogPlusButton>
-            <span className="max-w-[10rem] truncate sm:max-w-[12rem]" title={p.title}>
-              {p.title}
-              <span className="ms-0.5 tabular-nums text-ink/50">₪{p.price}</span>
-            </span>
-          </span>
-        )
-      })}
+              <CatalogPlusButton
+                aria-label={`הוספה: ${p.title}`}
+                disabled={q >= 99}
+                onClick={() => onChangeQty(p.id, q + 1)}
+              >
+                <Plus className="size-3.5" strokeWidth={2.5} aria-hidden />
+              </CatalogPlusButton>
+              <span className="min-w-0 flex-1 text-start text-[11px] leading-snug sm:max-w-[12rem] sm:truncate sm:text-xs" title={p.title}>
+                {p.title}
+                <span className="ms-0.5 tabular-nums text-ink/50">₪{p.price}</span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -561,21 +605,17 @@ function CatalogTrustStrip({ dense }: { dense?: boolean }) {
   ]
   if (dense) {
     return (
-      <p className="mt-2 text-center text-xs text-ink/50" aria-label="יתרונות המותג">
-        {items.map(({ Icon, label }, i) => (
-          <span key={label}>
-            {i > 0 ? (
-              <span className="mx-1.5 text-ink/25" aria-hidden>
-                ·
-              </span>
-            ) : null}
-            <span className="inline-flex items-center gap-0.5">
-              <Icon className="size-3 shrink-0 text-gold-deep/70" strokeWidth={2} aria-hidden />
-              {label}
-            </span>
-          </span>
+      <ul
+        className="mt-3 flex list-none flex-col items-center gap-2.5 px-1 text-center text-[11px] leading-snug text-ink/55 sm:mt-2 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-2 sm:gap-y-1 sm:px-0 sm:text-xs"
+        aria-label="יתרונות המותג"
+      >
+        {items.map(({ Icon, label }) => (
+          <li key={label} className="inline-flex max-w-[min(100%,22rem)] items-center justify-center gap-1.5 sm:max-w-none">
+            <Icon className="size-3 shrink-0 text-gold-deep/70" strokeWidth={2} aria-hidden />
+            <span>{label}</span>
+          </li>
         ))}
-      </p>
+      </ul>
     )
   }
   return (
@@ -646,7 +686,7 @@ export function ProductCatalog({
   return (
     <div className={`flex flex-col ${className}`}>
       {onChangeQty ? (
-        <div className="mx-auto max-w-4xl space-y-4 px-4">
+        <div className="mx-auto max-w-4xl space-y-5 px-4 sm:space-y-4">
           {intro ? (
             <p className="mx-auto max-w-3xl text-center text-sm leading-relaxed text-ink-muted sm:text-base">
               {intro}
@@ -731,10 +771,10 @@ export function ProductCatalog({
               <div
                 className={
                   dense
-                    ? 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4'
+                    ? 'grid grid-cols-2 gap-2 px-2 sm:grid-cols-3 sm:gap-x-3 sm:gap-y-3 sm:px-0 lg:grid-cols-4'
                     : cat === 'rolls'
-                      ? 'grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4 lg:gap-5'
-                      : 'grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:gap-6'
+                      ? 'grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:grid-cols-4 lg:gap-5'
+                      : 'grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4 lg:gap-6'
                 }
               >
                 {items.map((p) => (

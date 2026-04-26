@@ -348,7 +348,7 @@ export default function CheckoutPage() {
       />
       <main
         id="main"
-        className="relative z-[1] min-h-[100svh] overflow-x-hidden bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_100%)]"
+        className="relative z-[1] min-h-[100svh] overflow-x-hidden bg-cream"
       >
         <div
           className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0"
@@ -368,14 +368,6 @@ export default function CheckoutPage() {
         </div>
         <div
           className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[radial-gradient(ellipse_at_center,rgba(255,252,248,0.42)_0%,rgba(255,252,248,0.12)_42%,transparent_62%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[linear-gradient(180deg,rgba(247,243,238,0.25)_0%,transparent_28%,transparent_72%,rgba(239,231,223,0.35)_100%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(42,32,26,0.08)_100%)]"
           aria-hidden
         />
         <div

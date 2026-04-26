@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { site } from '../siteConfig'
 
+/** במובייל: סרטון אחד מלא (ללא פיצול) — מונע חוסר יישור וניגון כפול ב־iOS */
+const INTRO_NARROW_MAX_PX = 767
+
 const heroWordmark = site.logoWordmarkLatin
 const INTRO_CURTAIN_MS = 3400
 const INTRO_AFTER_CURTAIN_MS = 450
@@ -28,6 +31,9 @@ function introVideoBlurStyle(
 }
 
 export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
+  const [introNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(`(max-width: ${INTRO_NARROW_MAX_PX}px)`).matches,
+  )
   const [split, setSplit] = useState(false)
   const [logoState, setLogoState] = useState<'hidden' | 'visible' | 'fadeOut'>('hidden')
   const [introEndBlurPx, setIntroEndBlurPx] = useState(0)
@@ -51,10 +57,29 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     }
   }, [])
 
+  /** מובייל: ללא גלילה מתחת לאינטרו עד סיום המסך (כולל וילון), כדי שלא ייראו „שאריות” גלילה */
+  useEffect(() => {
+    if (!introNarrow) return
+    const html = document.documentElement
+    const body = document.body
+    const prevHtmlOverflow = html.style.overflow
+    const prevBodyOverflow = body.style.overflow
+    const prevBodyTouch = body.style.touchAction
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    body.style.touchAction = 'none'
+    return () => {
+      html.style.overflow = prevHtmlOverflow
+      body.style.overflow = prevBodyOverflow
+      body.style.touchAction = prevBodyTouch
+    }
+  }, [introNarrow])
+
   useEffect(() => {
     const L = videoLeftRef.current
     const R = videoRightRef.current
-    if (!L || !R) return
+    if (!L) return
+    if (!introNarrow && !R) return
 
     const flushIntroEndBlur = () => {
       introBlurRaf.current = null
@@ -106,8 +131,8 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     const runIntroFrameSync = () => {
       const L2 = videoLeftRef.current
       const R2 = videoRightRef.current
-      if (!L2 || !R2) return
-      syncSlaveToMaster(L2, R2)
+      if (!L2 || L2.paused || L2.ended) return
+      if (!introNarrow && R2) syncSlaveToMaster(L2, R2)
       maybeStartCurtainWhilePlaying()
       scheduleIntroEndBlur()
     }
@@ -127,8 +152,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
 
     const onMasterVideoFrame: VideoFrameRequestCallback = () => {
       const L2 = videoLeftRef.current
-      const R2 = videoRightRef.current
-      if (!L2 || !R2 || L2.paused || L2.ended) return
+      if (!L2 || L2.paused || L2.ended) return
       runIntroFrameSync()
       introRvfcHandleRef.current = L2.requestVideoFrameCallback(onMasterVideoFrame)
     }
@@ -144,8 +168,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     const rafSyncLoop = () => {
       introSyncRafRef.current = null
       const L2 = videoLeftRef.current
-      const R2 = videoRightRef.current
-      if (!L2 || !R2 || L2.paused || L2.ended) return
+      if (!L2 || L2.paused || L2.ended) return
       runIntroFrameSync()
       introSyncRafRef.current = requestAnimationFrame(rafSyncLoop)
     }
@@ -161,10 +184,12 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     const onPlaying = () => {
       const L2 = videoLeftRef.current
       const R2 = videoRightRef.current
-      if (!L2 || !R2) return
-      R2.currentTime = L2.currentTime
+      if (!L2) return
+      if (!introNarrow && R2) {
+        R2.currentTime = L2.currentTime
+        void R2.play().catch(() => {})
+      }
       maybeStartCurtainWhilePlaying()
-      void R2.play().catch(() => {})
       if (typeof L2.requestVideoFrameCallback === 'function') kickRvfcLoop()
       else kickRafFallback()
     }
@@ -185,7 +210,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
       if (introBlurRaf.current != null) cancelAnimationFrame(introBlurRaf.current)
       introBlurRaf.current = null
     }
-  }, [])
+  }, [introNarrow])
 
   useEffect(() => {
     if (!split) {
@@ -208,22 +233,86 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     return () => cancelAnimationFrame(raf)
   }, [split])
 
+  const videoProps = {
+    src: '/intro.mp4' as const,
+    autoPlay: true,
+    muted: true,
+    playsInline: true,
+    preload: 'auto' as const,
+    poster: '/images/hero.jpg',
+  }
+
   return (
-    <div className="fixed inset-0 z-[9999] flex" dir="ltr" aria-hidden>
+    <div
+      className={`fixed inset-0 z-[9999] flex min-h-[100dvh] overscroll-none ${introNarrow ? 'bg-transparent flex-col' : 'bg-black flex-row'}`}
+      dir="ltr"
+      aria-hidden
+    >
+      {introNarrow ? (
+        <div
+          className={`relative z-10 min-h-[100dvh] w-full min-w-0 flex-1 overflow-hidden bg-black transition-transform ease-[cubic-bezier(0.45,0.05,0.55,0.95)] motion-reduce:transition-none will-change-transform ${
+            split ? '-translate-y-full' : 'translate-y-0'
+          }`}
+          style={{ transitionDuration: `${INTRO_CURTAIN_MS}ms` }}
+        >
+          <video
+            ref={videoLeftRef}
+            {...videoProps}
+            controls={false}
+            disablePictureInPicture
+            disableRemotePlayback
+            className="intro-video-enter absolute inset-0 h-full w-full object-cover will-change-[filter]"
+            style={introVideoBlurStyle(introEndBlurPx, splitBlurRampPx)}
+            onPlay={() => {
+              if (logoPlayTimerRef.current) clearTimeout(logoPlayTimerRef.current)
+              logoPlayTimerRef.current = setTimeout(() => setLogoState('visible'), LOGO_ENTER_DELAY_MS)
+            }}
+            onLoadedMetadata={(e) => {
+              if (logoDurationFadeRef.current) clearTimeout(logoDurationFadeRef.current)
+              const duration = e.currentTarget.duration
+              if (!Number.isFinite(duration) || duration <= 0) return
+              const leadSec = LOGO_MOTION_MS / 1000 + 0.35
+              const ms = Math.max(0, (duration - leadSec) * 1000)
+              logoDurationFadeRef.current = setTimeout(() => setLogoState('fadeOut'), ms)
+            }}
+            onEnded={() => {
+              videoLeftRef.current?.pause()
+              if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+                setIntroEndBlurPx(INTRO_END_BLUR_MAX_PX)
+              }
+              setLogoState('hidden')
+              if (!introSplitStartedRef.current) {
+                introSplitStartedRef.current = true
+                introSplitWallMsRef.current = Date.now()
+                setSplit(true)
+              }
+              const started = introSplitWallMsRef.current ?? Date.now()
+              const elapsed = Date.now() - started
+              const wait = Math.max(INTRO_AFTER_CURTAIN_MS, INTRO_CURTAIN_MS - elapsed + 80)
+              introFadeTimer.current = setTimeout(() => {
+                setSplit(false)
+                setLogoState('hidden')
+                introSplitStartedRef.current = false
+                introSplitWallMsRef.current = null
+                onDone()
+              }, wait)
+            }}
+          />
+        </div>
+      ) : (
+        <>
       <div
-        className={`relative z-10 h-full w-1/2 min-w-0 overflow-hidden bg-black transition-transform ease-[cubic-bezier(0.45,0.05,0.55,0.95)] motion-reduce:transition-none ${
+        className={`relative z-10 h-full min-h-0 w-1/2 min-w-0 overflow-hidden bg-black transition-transform ease-[cubic-bezier(0.45,0.05,0.55,0.95)] motion-reduce:transition-none ${
           split ? '-translate-x-full' : 'translate-x-0'
         }`}
         style={{ transitionDuration: `${INTRO_CURTAIN_MS}ms` }}
       >
         <video
           ref={videoLeftRef}
-          src="/intro.mp4"
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          poster="/images/hero.jpg"
+          {...videoProps}
+          controls={false}
+          disablePictureInPicture
+          disableRemotePlayback
           className="intro-video-enter absolute inset-y-0 left-0 top-0 h-full w-[200%] max-w-none object-cover object-left will-change-[filter]"
           style={introVideoBlurStyle(introEndBlurPx, splitBlurRampPx)}
           onPlay={() => {
@@ -264,24 +353,26 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
         />
       </div>
       <div
-        className={`relative z-10 h-full w-1/2 min-w-0 overflow-hidden bg-black transition-transform ease-[cubic-bezier(0.45,0.05,0.55,0.95)] motion-reduce:transition-none ${
+        className={`relative z-10 h-full min-h-0 w-1/2 min-w-0 overflow-hidden bg-black transition-transform ease-[cubic-bezier(0.45,0.05,0.55,0.95)] motion-reduce:transition-none ${
           split ? 'translate-x-full' : 'translate-x-0'
         }`}
         style={{ transitionDuration: `${INTRO_CURTAIN_MS}ms` }}
       >
         <video
           ref={videoRightRef}
-          src="/intro.mp4"
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          poster="/images/hero.jpg"
+          {...videoProps}
+          controls={false}
+          disablePictureInPicture
+          disableRemotePlayback
           className="intro-video-enter absolute inset-y-0 left-0 top-0 h-full w-[200%] max-w-none -translate-x-1/2 object-cover object-right will-change-[filter]"
           style={introVideoBlurStyle(introEndBlurPx, splitBlurRampPx)}
         />
       </div>
-      <div className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4 ${split ? 'opacity-0' : ''}`}>
+        </>
+      )}
+      <div
+        className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] max-sm:px-5 ${split ? 'opacity-0' : ''}`}
+      >
         <div
           className={`relative text-center transition-all ease-in-out ${
             logoState === 'hidden'
@@ -295,11 +386,11 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
           lang="en"
         >
           <div
-            className="pointer-events-none absolute left-1/2 top-1/2 h-[220px] w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/35 blur-[48px]"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[min(180px,42svh)] w-[min(88vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/35 blur-[40px] max-sm:blur-[36px] md:h-[220px] md:w-[min(92vw,520px)] md:blur-[48px]"
             aria-hidden
           />
           <h1
-            className="relative font-didone text-[clamp(2rem,6.5vw,4.5rem)] font-semibold uppercase tracking-[0.22em] text-[#1a1a1a] md:text-[clamp(2.75rem,7vw,5.5rem)] lg:text-[clamp(3.25rem,6vw,6rem)]"
+            className="relative max-w-[min(100%,18ch)] font-didone text-[clamp(1.35rem,5.2vw,4.5rem)] font-semibold uppercase leading-[1.05] tracking-[0.14em] text-[#1a1a1a] max-sm:tracking-[0.1em] sm:max-w-none sm:tracking-[0.18em] md:text-[clamp(2.75rem,7vw,5.5rem)] md:tracking-[0.22em] lg:text-[clamp(3.25rem,6vw,6rem)]"
             style={{
               textShadow: `
   0 0 20px rgba(255,255,255,0.75),
@@ -313,7 +404,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
             {heroWordmark}
           </h1>
           <p
-            className="relative mt-3 font-script text-[clamp(1.15rem,3.8vw,2rem)] italic text-[#1a1a1a]/85 md:mt-4 md:text-[clamp(1.35rem,3.2vw,2.5rem)]"
+            className="relative mt-2 max-w-[min(100%,22ch)] font-script text-[clamp(1rem,3.2vw,2rem)] italic leading-snug text-[#1a1a1a]/85 max-sm:mt-2.5 md:mt-4 md:max-w-none md:text-[clamp(1.35rem,3.2vw,2.5rem)]"
             style={{
               textShadow: `
   0 0 14px rgba(255,255,255,0.45),
