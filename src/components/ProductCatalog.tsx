@@ -356,6 +356,8 @@ function ProductCard({
 
   const listDescHe = [p.desc.trim(), p.cardSubtitle?.trim()].filter(Boolean).join(' · ')
   const listImgStyle: CSSProperties | undefined = showFullCookie ? fullCookieImgStyle : rollCakeImgStyle
+  /** מובייל רשימה — עוגת שוקולד עגולה (catalog id 8) נראית קטנה ב־14; מעט יותר גדולה */
+  const compactListThumbLarger = p.id === 8
   const listPricePrimary = `₪${p.price}`
   const [mobileImageOpen, setMobileImageOpen] = useState(false)
 
@@ -440,38 +442,50 @@ function ProductCard({
               <img
                 src={catalogImageUrl(p.imageFile)}
                 alt=""
-                className="pointer-events-none h-14 w-14 shrink-0 rounded-md object-contain"
-                style={listImgStyle}
-                width={112}
-                height={112}
+                className={
+                  compactListThumbLarger
+                    ? 'pointer-events-none h-[4.25rem] w-[4.25rem] shrink-0 rounded-md object-contain'
+                    : 'pointer-events-none h-14 w-14 shrink-0 rounded-md object-contain'
+                }
+                style={
+                  compactListThumbLarger
+                    ? {
+                        ...listImgStyle,
+                        transform: [listImgStyle?.transform, 'scale(1.06)'].filter(Boolean).join(' ') || 'scale(1.06)',
+                        transformOrigin: (listImgStyle?.transformOrigin as string | undefined) ?? 'center center',
+                      }
+                    : listImgStyle
+                }
+                width={compactListThumbLarger ? 136 : 112}
+                height={compactListThumbLarger ? 136 : 112}
                 loading="eager"
                 decoding="async"
               />
             </button>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium leading-tight text-ink">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold leading-tight text-ink">
                 <ProductTitleWithStar
                   title={p.title}
                   featured={p.featured}
                   align="end"
                   starClassName="size-4 shrink-0"
                 />
-              </span>
-              {listDescHe ? (
-                <span className="mt-1 block line-clamp-2 text-xs text-ink/60">{listDescHe}</span>
-              ) : p.featured ? null : (
-                <span className="mt-1 block text-xs text-ink/45">הקשה לפרטים</span>
-              )}
-            </span>
-          </div>
-          {orderMode ? (
-            <div className="flex shrink-0 flex-col items-end gap-2">
-              <div className="text-end text-sm font-semibold tabular-nums text-ink">
+              </div>
+              <div className="mt-1 text-sm font-bold tabular-nums text-cocoa">
                 {listPricePrimary}
                 {showPriceLabelOnCard ? (
-                  <span className="ms-1 text-xs font-normal text-ink/55">({p.priceLabel})</span>
+                  <span className="ms-1 text-xs font-normal text-cocoa/65">({p.priceLabel})</span>
                 ) : null}
               </div>
+              {listDescHe ? (
+                <p className="mt-0.5 line-clamp-2 text-xs text-ink/50">{listDescHe}</p>
+              ) : p.featured ? null : (
+                <p className="mt-0.5 text-xs text-ink/50">הקשה לפרטים</p>
+              )}
+            </div>
+          </div>
+          {orderMode ? (
+            <div className="flex shrink-0 flex-col items-end justify-center gap-2 self-center">
               {qty < 1 ? (
                 <button
                   type="button"
