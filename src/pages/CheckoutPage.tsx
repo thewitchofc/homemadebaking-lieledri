@@ -18,6 +18,7 @@ import {
   isValidPreferredTimeSlotStartForIso,
   isValidRollsPackTotal,
   mergeCartWhatsAppWithCheckoutDelivery,
+  catalogImageUrl,
   GREETING_CARD_PRODUCT_ID,
   preferredTimeSlotStartsForCheckoutIso,
   rollsPackCountInCart,
@@ -133,6 +134,7 @@ export default function CheckoutPage() {
     crumbleCookiesQty,
     greetingCardText,
     setGreetingCardText,
+    setQty,
   } = useOrderCart()
 
   const [deliveryMethod, setDeliveryMethod] = useState<CheckoutDeliveryMethod | null>(null)
@@ -164,6 +166,14 @@ export default function CheckoutPage() {
   const cartPreviewLines = useMemo(
     () => getCartPreviewLines(cart, rollsDraft, catalogProducts),
     [cart, rollsDraft],
+  )
+  const checkoutSummaryLines = useMemo(
+    () => cartPreviewLines.filter((line) => line.productId !== GREETING_CARD_PRODUCT_ID),
+    [cartPreviewLines],
+  )
+  const greetingCatalogProduct = useMemo(
+    () => catalogProducts.find((p) => p.id === GREETING_CARD_PRODUCT_ID),
+    [],
   )
   const orderCount = useMemo(() => {
     let n = 0
@@ -391,7 +401,7 @@ export default function CheckoutPage() {
           </h2>
           <div className={`${sectionBodyClass} ${sectionTitleToContentClass}`}>
           <ul className="divide-y divide-cream-dark/50">
-            {cartPreviewLines.map((line) => {
+            {checkoutSummaryLines.map((line) => {
               const product = catalogProducts.find((p) => p.id === line.productId)
               const lineTotal = product
                 ? cartLinePriceForProduct(product, line.qty)
@@ -443,6 +453,75 @@ export default function CheckoutPage() {
           ) : null}
         </div>
         </section>
+
+        {greetingCatalogProduct ? (
+          <section className={checkoutCardClass} aria-labelledby="checkout-greeting-heading">
+            <h2 id="checkout-greeting-heading" className={sectionTitleClass}>
+              כרטיס ברכה
+            </h2>
+            <div className={`${sectionBodyClass} ${sectionTitleToContentClass}`}>
+              <div className="flex gap-3 rounded-xl border border-cream-dark/40 bg-cream/50 p-3">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-cream-dark/35 bg-white">
+                  <img
+                    src={catalogImageUrl(greetingCatalogProduct.imageFile)}
+                    alt=""
+                    width={96}
+                    height={96}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+                <p className="min-w-0 flex-1 text-start text-xs leading-relaxed text-ink/75">
+                  {greetingCatalogProduct.desc}
+                </p>
+              </div>
+              {!hasGreetingCardInCart ? (
+                <button
+                  type="button"
+                  onClick={() => setQty(GREETING_CARD_PRODUCT_ID, 1)}
+                  className="w-full rounded-xl border border-cocoa/40 bg-cocoa px-4 py-3 text-sm font-semibold text-cream shadow-sm transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep active:scale-[0.99]"
+                >
+                  הוסיפו כרטיס ברכה — ₪{greetingCatalogProduct.price}
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-dark/40 pb-3">
+                    <p className="text-sm font-semibold tabular-nums text-ink">
+                      בעגלה · ₪{greetingCatalogProduct.price}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setQty(GREETING_CARD_PRODUCT_ID, 0)}
+                      className="touch-manipulation text-sm font-medium text-cocoa underline-offset-4 hover:underline"
+                    >
+                      הסרה מהזמנה
+                    </button>
+                  </div>
+                  <div>
+                    <label htmlFor="co-greeting-card" className={labelClass}>
+                      מה לכתוב בכרטיס
+                    </label>
+                    <p className="mt-0.5 text-xs text-ink/55">עד 50 תווים</p>
+                    <textarea
+                      id="co-greeting-card"
+                      name="greetingCardText"
+                      rows={3}
+                      maxLength={50}
+                      value={greetingCardText}
+                      onChange={(e) => setGreetingCardText(e.target.value)}
+                      className={`${inputClass} resize-y min-h-[5.5rem]`}
+                      placeholder="למשל: חג שמח! אוהבים מאוד…"
+                    />
+                    <p className="mt-1 text-end text-xs tabular-nums text-ink/45">
+                      {greetingCardText.length}/50
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        ) : null}
 
         {crumbleCookiesQty > 0 && !isValidCrumblePackTotal(crumbleCookiesQty) ? (
           <p className="rounded-2xl border border-gold-deep/40 bg-gold/10 px-4 py-3 text-sm leading-relaxed text-ink">
@@ -721,28 +800,6 @@ export default function CheckoutPage() {
                     placeholder="אלרגיות, הודעה לשליח…"
                   />
                 </div>
-
-                {hasGreetingCardInCart ? (
-                  <div>
-                    <label htmlFor="co-greeting-card" className={labelClass}>
-                      מה לכתוב בכרטיס הברכה
-                    </label>
-                    <p className="mt-0.5 text-xs text-ink/55">עד 50 תווים</p>
-                    <textarea
-                      id="co-greeting-card"
-                      name="greetingCardText"
-                      rows={3}
-                      maxLength={50}
-                      value={greetingCardText}
-                      onChange={(e) => setGreetingCardText(e.target.value)}
-                      className={`${inputClass} resize-y min-h-[5.5rem]`}
-                      placeholder="למשל: חג שמח! אוהבים מאוד…"
-                    />
-                    <p className="mt-1 text-end text-xs tabular-nums text-ink/45">
-                      {greetingCardText.length}/50
-                    </p>
-                  </div>
-                ) : null}
               </div>
             </section>
 

@@ -17,12 +17,15 @@ import { DocumentMeta } from '../components/DocumentMeta'
 import { defaultWaMessage, site } from '../siteConfig'
 import { ProductCatalog } from '../components/ProductCatalog'
 import { WaButton } from '../components/WaButton'
-import { sectionBodyClass, sectionInner, sectionShell, sectionTitleToContentClass } from '../sectionLayout'
+import { sectionBodyClass, sectionInner, sectionTitleToContentClass } from '../sectionLayout'
+
+/** סקשן סיום הזמנה — ריווח אנכי מתון; תחתית צפופה יותר במובייל ובדסקטופ */
+const orderDetailsSectionShell =
+  'relative py-8 max-sm:pb-3 sm:pt-10 sm:pb-6 md:pt-12 md:pb-8 lg:pt-14 lg:pb-9'
 
 const orderCategories = [
-  { id: 'greeting-card-row', label: 'כרטיס ברכה' },
   { id: 'catalog-rolls', label: 'מגולגלות' },
-  { id: 'catalog-cookies', label: 'עוגיות' },
+  { id: 'catalog-cookies', label: 'עוגיות במארז' },
   { id: 'catalog-crumbleCookies', label: 'קראמבל' },
   { id: 'catalog-cakes', label: 'עוגות' },
   { id: 'catalog-giantCrumbleDesign', label: 'עוגות בעיצוב אישי' },
@@ -93,9 +96,11 @@ export default function OrderPage() {
       let current = ''
 
       sections.forEach((section) => {
+        if (getComputedStyle(section).display === 'none') return
         const rect = section.getBoundingClientRect()
         if (rect.top <= 140) {
-          current = section.id
+          const navId = section.dataset.categoryNavId
+          current = (navId && navId.length > 0 ? navId : section.id) || ''
         }
       })
 
@@ -115,8 +120,8 @@ export default function OrderPage() {
       id="main"
       className={`relative z-[1] min-h-0 bg-cream ${
         showCartChrome
-          ? 'pb-[max(4rem,calc(env(safe-area-inset-bottom)+3.5rem))] sm:pb-24'
-          : 'pb-[env(safe-area-inset-bottom)]'
+          ? 'pb-[max(5rem,calc(env(safe-area-inset-bottom)+3.5rem))] sm:pb-24'
+          : 'pb-[max(5rem,env(safe-area-inset-bottom))]'
       }`}
     >
       <div
@@ -154,7 +159,7 @@ export default function OrderPage() {
         className="sticky top-[var(--header-h)] z-40 border-b border-cream-dark/40 bg-white/90 backdrop-blur-sm"
         aria-label="ניווט קטגוריות בתפריט המתוקים"
       >
-        <div className="flex touch-pan-x gap-2 overflow-x-auto px-3 py-2.5 no-scrollbar scroll-smooth [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:justify-center sm:gap-2.5 sm:overflow-x-visible sm:px-4 sm:py-3">
+        <div className="no-scrollbar flex flex-nowrap items-center justify-start gap-2 overflow-x-auto overscroll-x-contain px-3 py-2 sm:justify-center sm:overflow-x-visible sm:gap-2.5 sm:px-4 sm:py-3">
           {orderCategories.map((cat) => {
             const isActive = activeCategory === cat.id
             return (
@@ -170,9 +175,9 @@ export default function OrderPage() {
                 className={`
                   relative shrink-0 touch-manipulation whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium
                   transition-all duration-300
+                  sm:px-4 sm:py-2 sm:text-sm
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa/40
                   active:scale-[0.98]
-                  sm:px-4 sm:py-2 sm:text-sm
                   ${isActive ? 'text-cream' : 'text-ink/70 hover:text-ink'}
                 `}
               >
@@ -190,8 +195,8 @@ export default function OrderPage() {
       </nav>
 
       <div className="overflow-x-clip">
-      <section className={`border-b border-cream-dark/40 bg-white/25 ${sectionShell}`}>
-        <div className="mx-auto max-w-4xl px-4 text-center">
+      <section className="border-b border-cream-dark/40 bg-white/25 py-5 sm:py-10 md:py-12">
+        <div className="mx-auto max-w-4xl px-3 text-center sm:px-4">
           <h1 className="font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
             תפריט מתוקים
           </h1>
@@ -202,7 +207,7 @@ export default function OrderPage() {
         id="order-catalog"
         className={`scroll-mt-[100px] ${orderSectionScrollMtClass} border-b border-cream-dark/40 bg-white/20`}
       >
-        <div className="flex flex-col gap-6 sm:gap-10">
+        <div className="flex flex-col gap-4 sm:gap-10">
           <ProductCatalog
             className="bg-transparent"
             dense
@@ -211,7 +216,7 @@ export default function OrderPage() {
             onChangeQty={setQty}
             sectionScrollMtClass={orderSectionScrollMtClass}
           />
-          <div className="mx-auto max-w-6xl px-4 pb-2 text-center md:px-6">
+          <div className="mx-auto max-w-6xl px-3 pb-2 text-center sm:px-4 md:px-6">
             <Link
               to="/"
               className="inline-flex min-h-11 w-full touch-manipulation items-center justify-center px-2 text-sm font-semibold text-gold-deep underline-offset-4 hover:underline active:text-gold sm:min-h-0 sm:w-auto"
@@ -225,10 +230,10 @@ export default function OrderPage() {
       <section
         id="order-details"
         data-category-section
-        className={`scroll-mt-[100px] ${orderSectionScrollMtClass} border-t border-cream-dark/40 ${sectionShell}`}
+        className={`scroll-mt-[100px] ${orderSectionScrollMtClass} border-t border-cream-dark/40 ${orderDetailsSectionShell}`}
       >
         <div className={sectionInner}>
-          <div className="grid items-center gap-6 md:grid-cols-2">
+          <div className="grid items-center gap-4 sm:gap-6 md:grid-cols-2">
             <div>
               <h2 className="font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
                 פרטים ואיסוף
@@ -251,11 +256,11 @@ export default function OrderPage() {
             </div>
 
             <div id="order-send" data-category-section className={`scroll-mt-[100px] ${orderSectionScrollMtClass}`}>
-              <div className="rounded-xl border border-cream-dark/50 bg-cream/90 px-4 py-5 text-center shadow-sm sm:px-5">
+              <div className="rounded-xl border border-cream-dark/50 bg-cream/90 px-3 py-3 text-center shadow-sm sm:px-5 sm:py-5">
                 <h3 className="font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
                   מוכנים לטעימה הבאה?
                 </h3>
-                <div className={`${sectionBodyClass} ${sectionTitleToContentClass} items-center`}>
+                <div className="mt-2 flex flex-col items-center sm:mt-4">
                 <WaButton
                   message={defaultWaMessage}
                   className="!min-h-0 w-full !px-4 !py-2 !text-sm sm:mx-auto sm:w-auto sm:max-w-xs [&_svg]:size-4"

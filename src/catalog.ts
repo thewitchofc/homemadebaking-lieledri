@@ -10,7 +10,7 @@ export const categoryOrder: ProductCategory[] = [
   'giantCrumbleDesign',
 ]
 
-/** כרטיס ברכה — לא מוצג בגריד הקטגוריות; שורה ייעודית מעל התפריט */
+/** כרטיס ברכה — לא בתפריט המתוקים; נוסף/נערך רק במסך סיכום הזמנה */
 export const GREETING_CARD_PRODUCT_ID = 99
 
 /** גדלי מארז קראמבל (סך הכל בעגלה חייב להתפרק ל־4a+6b) */
@@ -29,7 +29,7 @@ export const categoryLabels: Record<ProductCategory, { title: string; subtitle?:
     subtitle: 'ניתן לערבב טעמים',
   },
   cookies: {
-    title: 'עוגיות',
+    title: 'עוגיות במארז',
     subtitle: 'קוקיז מיוחדות ומארזים',
   },
   crumbleCookies: {
@@ -76,7 +76,6 @@ export const catalogProducts: CatalogProduct[] = [
     category: 'rolls',
     title: 'נוטלה דובאי',
     featured: true,
-    cardSubtitle: 'מהטעמים הנמכרים ביותר במגולגלות',
     desc: '',
     price: 79,
     priceLabel: '12 יחידות במארז',
@@ -122,7 +121,7 @@ export const catalogProducts: CatalogProduct[] = [
     id: 7,
     category: 'cookies',
     title: 'עוגיית אמסטרדם דובאי',
-    cardSubtitle: 'קוקיז דובאי – נמכרת בקביעות',
+    featured: true,
     desc: '',
     price: 69,
     priceLabel: '5 עוגיות במארז',
@@ -134,7 +133,6 @@ export const catalogProducts: CatalogProduct[] = [
     category: 'crumbleCookies',
     title: 'קראמבל דובאי פיסטוק',
     featured: true,
-    cardSubtitle: 'דובאי פיסטוק – מהמבוקשות בקראמבל',
     desc: '',
     price: 20,
     priceLabel: '',

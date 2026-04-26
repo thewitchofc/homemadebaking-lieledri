@@ -7,6 +7,15 @@
   --order-subnav-h: 3.25rem;
 }
 
+@media (max-width: 639px) {
+  /**
+   * מובייל: סרגל קטגוריות בשורה אחת (גלילה אופקית) — גובה דביק ל־scroll-margin.
+   */
+  :root {
+    --order-subnav-h: 4.25rem;
+  }
+}
+
 @theme {
   /**
    * עברית: Rubik, קווים רכים ו„בלוניים” יותר מ־Assistant.
@@ -230,24 +239,45 @@
       object-fit: contain !important;
     }
 
-    /** דף הזמנה — כרטיס קומפקטי (תמונה 5rem) */
+    /** דף הזמנה — כרטיס קומפקטי בגריד (תמונה 4.5rem); ברשימת מובייל התמונה בלי product-card-media */
     .product-card.product-card--order-compact > div:first-child > div {
-      padding: 6px !important;
+      padding: 4px !important;
     }
 
     .product-card.product-card--order-compact.product-card--full-cookie > div:first-child > div,
     .product-card.product-card--order-compact.product-card--full-cookie.product-card--crumble-single
       > div:first-child
       > div {
-      padding: 6px !important;
+      padding: 4px !important;
     }
 
     .product-card.product-card--order-compact .product-card-media {
-      width: 5rem !important;
-      height: 5rem !important;
-      max-width: 5rem !important;
-      max-height: 5rem !important;
+      width: 4.5rem !important;
+      height: 4.5rem !important;
+      max-width: 4.5rem !important;
+      max-height: 4.5rem !important;
       object-fit: contain !important;
+    }
+
+    /**
+     * רשימת מובייל בדף הזמנה: div הפנימי של השורה הוא עמודת מחיר — לא תא תמונה.
+     * דורס את כללי full-cookie/crumble-single שמחזירים padding על אותו selector.
+     */
+    .product-card.product-card--order-compact > div:first-child > div,
+    .product-card.product-card--order-compact.product-card--full-cookie > div:first-child > div,
+    .product-card.product-card--order-compact.product-card--full-cookie.product-card--crumble-single
+      > div:first-child
+      > div {
+      align-items: flex-end !important;
+      justify-content: flex-start !important;
+      padding: 0 !important;
+      background-color: transparent !important;
+    }
+
+    /** מעטפת שקופה — רק השורה הלבנה נצבעת; מונע הילה/מלבן סביב פינות בקראמבל ובשאר הרשימה */
+    .product-card.product-card--order-compact {
+      background-color: transparent !important;
+      box-shadow: none !important;
     }
   }
 

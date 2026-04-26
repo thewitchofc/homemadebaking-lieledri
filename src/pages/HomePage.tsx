@@ -295,10 +295,6 @@ export default function HomePage() {
       </section>
 
       <section className="relative bg-cocoa py-20 text-center text-cream">
-        <div
-          className="pointer-events-none absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-white/40 to-transparent"
-          aria-hidden
-        />
         <div className="mx-auto max-w-2xl px-4">
           <h2 className="text-2xl font-semibold md:text-3xl">
             בואו נבנה יחד את הקינוח לרגע שלכם
