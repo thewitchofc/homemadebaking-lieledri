@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ShoppingCart } from 'lucide-react'
 import {
+  ROLLS_PACK_SIZE,
   cartDisplayItemCount,
   cartOrderTotalWithDraft,
   cartPackIssueScrollTargetId,
   catalogProducts,
+  crumbleCookiesQtyInCart,
+  isValidCrumblePackTotal,
+  rollsQtyInCart,
 } from '../catalog'
 import { gaEvent } from '../analytics'
 import { useOrderCart } from '../contexts/OrderCartContext'
@@ -13,64 +17,112 @@ import { DocumentMeta } from '../components/DocumentMeta'
 import { defaultWaMessage, site } from '../siteConfig'
 import { ProductCatalog } from '../components/ProductCatalog'
 import { WaButton } from '../components/WaButton'
+import {
+  premiumActionButtonClass,
+  sectionBodyClass,
+  sectionInner,
+  sectionShell,
+  sectionTitleToContentClass,
+} from '../sectionLayout'
 
-const orderNav = [
-  { href: '#greeting-card-row', label: 'כרטיס ברכה' },
-  { href: '#catalog-rolls', label: 'מגולגלות' },
-  { href: '#catalog-cookies', label: 'עוגיות' },
-  { href: '#catalog-crumbleCookies', label: 'קראמבל' },
-  { href: '#catalog-cakes', label: 'עוגות' },
-  { href: '#order-steps', label: 'איך מזמינים' },
-  { href: '#order-send', label: 'שליחה בוואטסאפ' },
-  { href: '#order-details', label: 'פרטים ואיסוף' },
-]
+const orderCategories = [
+  { id: 'greeting-card-row', label: 'כרטיס ברכה' },
+  { id: 'catalog-rolls', label: 'מגולגלות' },
+  { id: 'catalog-cookies', label: 'עוגיות' },
+  { id: 'catalog-crumbleCookies', label: 'קראמבל' },
+  { id: 'catalog-cakes', label: 'עוגות' },
+  { id: 'catalog-giantCrumbleDesign', label: 'עוגות בעיצוב אישי' },
+  { id: 'order-steps', label: 'איך מזמינים' },
+] as const
+
+/** יישור גלילה לעוגנים מתחת ל־header + סרגל קטגוריות */
+const orderSectionScrollMtClass =
+  'scroll-mt-[calc(var(--header-h)+var(--order-subnav-h)+0.75rem)]'
 
 export default function OrderPage() {
-  const { cart, rollsDraft, setQty, showCartChrome, canSendCartWhatsApp } = useOrderCart()
+  const { cart, rollsDraft, rollsDraftTotal, setQty, showCartChrome, canSendCartWhatsApp } = useOrderCart()
 
   useEffect(() => {
     gaEvent('view_catalog')
   }, [])
 
+  /** מבטל נעילת overflow שנשארה ממסכים אחרים כדי לאפשר גלילה בתפריט */
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    html.style.removeProperty('overflow')
+    body.style.removeProperty('overflow')
+    return () => {
+      html.style.removeProperty('overflow')
+      body.style.removeProperty('overflow')
+    }
+  }, [])
+
   const cartBarOrderTotal = cartOrderTotalWithDraft(cart, rollsDraft, catalogProducts)
   const cartBarLineCount = cartDisplayItemCount(cart, catalogProducts)
+  const rollsTotalSelected = rollsQtyInCart(cart, catalogProducts) + rollsDraftTotal
+  const hasRollsPackMismatch = rollsTotalSelected > 0 && rollsTotalSelected % ROLLS_PACK_SIZE !== 0
+  const crumbleQtyInCart = crumbleCookiesQtyInCart(cart, catalogProducts)
+  const hasCrumblePackMismatch = crumbleQtyInCart > 0 && !isValidCrumblePackTotal(crumbleQtyInCart)
+  const canProceedToCheckout = canSendCartWhatsApp && !hasRollsPackMismatch
 
-  const categoryNavRef = useRef<HTMLElement>(null)
-  const [activeNavHref, setActiveNavHref] = useState(() => {
-    const h = typeof window !== 'undefined' ? window.location.hash : ''
-    return orderNav.some((n) => n.href === h) ? h : orderNav[0].href
-  })
+  const navRef = useRef<HTMLElement>(null)
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const [activeCategory, setActiveCategory] = useState('')
+
+  const scrollToCategory = useCallback((id: string) => {
+    const el = document.getElementById(id)
+    if (!el) return
+
+    const offset = 100
+    const y = el.getBoundingClientRect().top + window.scrollY - offset
+
+    window.scrollTo({
+      top: y,
+      behavior: 'smooth',
+    })
+  }, [])
 
   useEffect(() => {
-    const updateActive = () => {
-      const threshold = categoryNavRef.current?.getBoundingClientRect().bottom ?? 120
-      let current = orderNav[0].href
-      for (const item of orderNav) {
-        const el = document.getElementById(item.href.slice(1))
-        if (!el) continue
-        if (el.getBoundingClientRect().top <= threshold + 2) {
-          current = item.href
+    const el = btnRefs.current[activeCategory]
+    if (!el) return
+
+    el.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    })
+  }, [activeCategory])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = document.querySelectorAll<HTMLElement>('[data-category-section]')
+      let current = ''
+
+      sections.forEach((section) => {
+        const rect = section.getBoundingClientRect()
+        if (rect.top <= 140) {
+          current = section.id
         }
-      }
-      setActiveNavHref((prev) => (prev === current ? prev : current))
+      })
+
+      if (current) setActiveCategory(current)
     }
-    updateActive()
-    window.addEventListener('scroll', updateActive, { passive: true })
-    window.addEventListener('resize', updateActive, { passive: true })
-    window.addEventListener('hashchange', updateActive)
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', handleScroll, { passive: true })
     return () => {
-      window.removeEventListener('scroll', updateActive)
-      window.removeEventListener('resize', updateActive)
-      window.removeEventListener('hashchange', updateActive)
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleScroll)
     }
   }, [])
 
   return (
     <main
       id="main"
-      className={`relative z-[1] overflow-x-hidden bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_100%)] ${
+      className={`relative z-[1] min-h-0 bg-[linear-gradient(180deg,#f7f3ee_0%,#efe7df_100%)] ${
         showCartChrome
-          ? 'pb-[max(5.25rem,calc(env(safe-area-inset-bottom)+4.25rem))] sm:pb-20'
+          ? 'pb-[max(6.5rem,calc(env(safe-area-inset-bottom)+5.25rem))] sm:pb-24'
           : 'pb-[env(safe-area-inset-bottom)]'
       }`}
     >
@@ -106,72 +158,94 @@ export default function OrderPage() {
         aria-hidden
       />
 
-      <div className="relative z-10">
+      <div className="relative z-10 min-h-0">
       <DocumentMeta
         title={`תפריט מתוקים | ${site.brandHe}`}
         description={`מגולגלות, עוגיות, קראמבל, עוגות ומארזים — הזמנה דרך האתר וסיום בוואטסאפ. נקודת איסוף: ${site.pickupAddress}. משלוח ל${site.deliveryFeeCenterArea} בתיאום.`}
       />
-      <section className="border-b border-cream-dark/40 bg-white/25 py-4 backdrop-blur-[1px] sm:py-5">
-        <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
-          <h1 className="font-display text-2xl font-medium text-ink sm:text-3xl">תפריט מתוקים</h1>
-          <p className="mx-auto mt-2 max-w-lg text-xs text-ink-muted sm:text-sm">
-            הזמנה מהרשימה למטה — בחירת קטגוריה מהניווט.
-          </p>
-        </div>
-      </section>
 
       <nav
-        ref={categoryNavRef}
-        className="sticky top-[var(--header-h)] z-40 mt-1 mb-1.5 border-b border-cream-dark/45 bg-white/80 py-2 backdrop-blur-sm"
+        ref={navRef}
+        className="sticky top-[var(--header-h)] z-40 border-b border-cream-dark/40 bg-white/90 backdrop-blur-sm"
         aria-label="ניווט קטגוריות בתפריט המתוקים"
       >
-        <div className="mx-auto max-w-6xl px-3 sm:px-6">
-          <ul className="flex snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:justify-center sm:gap-1.5 sm:pb-1 [&::-webkit-scrollbar]:hidden">
-            {orderNav.map((item) => {
-              const isActive = activeNavHref === item.href
-              return (
-                <li key={item.href} className="shrink-0 snap-center">
-                  <a
-                    href={item.href}
-                    aria-current={isActive ? 'location' : undefined}
-                    className={[
-                      'inline-flex min-h-9 touch-manipulation items-center justify-center rounded-full border px-3 py-1.5 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep sm:min-h-0',
-                      isActive
-                        ? 'border-cocoa bg-cocoa text-cream hover:border-cocoa hover:bg-cocoa hover:text-cream'
-                        : 'border-cream-dark/60 bg-cream/90 text-ink hover:border-gold-deep hover:text-gold-deep active:bg-cream-dark/45',
-                    ].join(' ')}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              )
-            })}
-          </ul>
+        <div className="flex touch-pan-x gap-1 overflow-x-auto no-scrollbar px-2 py-2 scroll-smooth [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:justify-center sm:overflow-x-visible sm:px-3 sm:py-3">
+          {orderCategories.map((cat) => {
+            const isActive = activeCategory === cat.id
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                ref={(el) => {
+                  btnRefs.current[cat.id] = el
+                }}
+                data-category-id={cat.id}
+                aria-current={isActive ? true : undefined}
+                onClick={() => scrollToCategory(cat.id)}
+                className={`
+                  relative shrink-0 touch-manipulation whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium
+                  transition-all duration-300
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cocoa/40
+                  active:scale-[0.98]
+                  ${isActive ? 'text-cream' : 'text-ink/70 hover:text-ink'}
+                `}
+              >
+                {isActive ? (
+                  <span
+                    className="absolute inset-0 z-0 rounded-full bg-cocoa transition-all duration-300"
+                    aria-hidden
+                  />
+                ) : null}
+                <span className="relative z-10">{cat.label}</span>
+              </button>
+            )
+          })}
         </div>
       </nav>
 
-      <section id="order-catalog" className="scroll-mt-36 border-b border-cream-dark/40 bg-white/20 py-5 backdrop-blur-[1px] sm:py-6">
-        <ProductCatalog
-          className="bg-transparent pb-2"
-          dense
-          cart={cart}
-          rollsDraft={rollsDraft}
-          onChangeQty={setQty}
-        />
-        <p className="mt-3 text-center">
-          <Link
-            to="/"
-            className="inline-flex min-h-11 touch-manipulation items-center justify-center px-2 text-sm font-semibold text-gold-deep underline-offset-4 hover:underline active:text-gold sm:min-h-0"
-          >
-            לעמוד הבית
-          </Link>
-        </p>
+      <div className="overflow-x-clip">
+      <section className={`border-b border-cream-dark/40 bg-white/25 ${sectionShell}`}>
+        <div className="mx-auto max-w-4xl px-4 text-center">
+          <h1 className="font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
+            תפריט מתוקים
+          </h1>
+        </div>
       </section>
 
-      <section id="order-steps" className="scroll-mt-36 border-b border-cream-dark/40 bg-cream py-5 sm:py-6">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-center font-display text-xl font-medium text-ink sm:text-2xl">איך מזמינים</h2>
-          <ol className="mt-4 grid gap-3 sm:grid-cols-3 sm:gap-4">
+      <div
+        id="order-catalog"
+        className={`scroll-mt-[100px] ${orderSectionScrollMtClass} border-b border-cream-dark/40 bg-white/20`}
+      >
+        <div className="flex flex-col gap-6 sm:gap-10">
+          <ProductCatalog
+            className="bg-transparent"
+            dense
+            cart={cart}
+            rollsDraft={rollsDraft}
+            onChangeQty={setQty}
+            sectionScrollMtClass={orderSectionScrollMtClass}
+          />
+          <div className="mx-auto max-w-6xl px-4 pb-2 text-center md:px-6">
+            <Link
+              to="/"
+              className="inline-flex min-h-11 w-full touch-manipulation items-center justify-center px-2 text-sm font-semibold text-gold-deep underline-offset-4 hover:underline active:text-gold sm:min-h-0 sm:w-auto"
+            >
+              לעמוד הבית
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <section
+        id="order-steps"
+        data-category-section
+        className={`scroll-mt-[100px] ${orderSectionScrollMtClass} border-b border-cream-dark/40 bg-cream ${sectionShell}`}
+      >
+        <div className={sectionInner}>
+          <h2 className="text-center font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
+            איך מזמינים
+          </h2>
+          <ol className={`grid gap-6 sm:grid-cols-3 ${sectionTitleToContentClass}`}>
             {[
               {
                 step: '1',
@@ -191,87 +265,96 @@ export default function OrderPage() {
             ].map((s) => (
               <li
                 key={s.step}
-                className="rounded-xl border border-cream-dark bg-cream p-4 text-center shadow-sm sm:p-4"
+                className="flex flex-col gap-4 rounded-xl border border-cream-dark bg-cream p-4 text-center shadow-sm sm:p-4"
               >
-                <span className="mx-auto flex size-10 items-center justify-center rounded-full bg-cocoa font-display text-lg font-semibold text-gold">
+                <span className="mx-auto flex size-10 shrink-0 items-center justify-center rounded-full bg-cocoa font-display text-lg font-semibold text-gold">
                   {s.step}
                 </span>
-                <h3 className="mt-3 font-semibold text-ink">{s.title}</h3>
-                <p className="mt-2 text-sm text-ink-muted">{s.desc}</p>
+                <h3 className="text-sm font-semibold text-ink sm:text-base">{s.title}</h3>
+                <p className="text-sm text-ink-muted sm:text-base">{s.desc}</p>
               </li>
             ))}
           </ol>
         </div>
       </section>
 
-      <section id="order-send" className="scroll-mt-36 py-6 md:py-8">
-        <div className="mx-auto max-w-2xl px-4 sm:px-6">
-          <div className="rounded-xl border border-cream-dark/50 bg-cream/90 px-4 py-5 text-center shadow-sm sm:px-5">
-            <p className="font-display text-xl text-ink md:text-2xl">מוכנים לטעימה הבאה?</p>
-            <p className="mx-auto mt-2 max-w-md text-xs text-ink-muted sm:text-sm">שורה בוואטסאפ — חוזרים אליכם.</p>
-            <WaButton
-              message={defaultWaMessage}
-              className="mt-4 !min-h-0 w-full max-w-xs !px-4 !py-2 !text-sm sm:mx-auto [&_svg]:size-4"
-            >
-              שלחו הודעה עכשיו
-            </WaButton>
-          </div>
-        </div>
-      </section>
+      <section
+        id="order-details"
+        data-category-section
+        className={`scroll-mt-[100px] ${orderSectionScrollMtClass} border-t border-cream-dark/40 ${sectionShell}`}
+      >
+        <div className={sectionInner}>
+          <div className="grid items-center gap-6 md:grid-cols-2">
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
+                פרטים ואיסוף
+              </h2>
+              <div className={`${sectionBodyClass} ${sectionTitleToContentClass}`}>
+              <p className="text-sm text-ink sm:text-base">
+                ימי הזמנה: <strong className="text-ink">{site.orderDays}</strong>
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-4 text-sm text-ink sm:text-base">
+                <span className="min-w-0 max-w-full leading-snug">
+                  <strong className="text-ink">איסוף</strong> {site.pickupAddress} · {site.pickupWindowFri} ·{' '}
+                  {site.pickupWindowWedThu} · משבצת בסיום הזמנה
+                </span>
+                <span className="min-w-0 max-w-full leading-snug">
+                  <strong className="text-ink">משלוח</strong> {site.deliveryFeeCenterArea} ₪{site.deliveryFeeCenterShekels}{' '}
+                  בתיאום — יתווסף לסיכום בהמשך
+                </span>
+              </div>
+              </div>
+            </div>
 
-      <section id="order-details" className="scroll-mt-36 border-t border-cream-dark/40 py-4 sm:py-5">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6">
-          <h2 className="font-display text-base font-medium text-ink sm:text-lg">פרטים ואיסוף</h2>
-          <p className="mt-1 text-xs text-ink-muted sm:text-sm">
-            ימי הזמנה: <strong className="text-ink">{site.orderDays}</strong>
-          </p>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-ink-muted">
-            <span className="min-w-0 max-w-full leading-snug">
-              <strong className="text-ink">איסוף</strong> {site.pickupAddress} · {site.pickupWindowFri} ·{' '}
-              {site.pickupWindowWedThu} · משבצת בסיום הזמנה
-            </span>
-            <span className="min-w-0 max-w-full leading-snug">
-              <strong className="text-ink">משלוח</strong> {site.deliveryFeeCenterArea} ₪{site.deliveryFeeCenterShekels}{' '}
-              בתיאום — יתווסף לסיכום בהמשך
-            </span>
+            <div id="order-send" data-category-section className={`scroll-mt-[100px] ${orderSectionScrollMtClass}`}>
+              <div className="rounded-xl border border-cream-dark/50 bg-cream/90 px-4 py-5 text-center shadow-sm sm:px-5">
+                <h3 className="font-display text-lg font-semibold tracking-tight text-ink sm:text-2xl">
+                  מוכנים לטעימה הבאה?
+                </h3>
+                <div className={`${sectionBodyClass} ${sectionTitleToContentClass} items-center`}>
+                <WaButton
+                  message={defaultWaMessage}
+                  className="!min-h-0 w-full !px-4 !py-2 !text-sm sm:mx-auto sm:w-auto sm:max-w-xs [&_svg]:size-4"
+                >
+                  שלחו הודעה עכשיו
+                </WaButton>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       </div>
+      </div>
 
       {showCartChrome ? (
         <div
           id="order-cart-bar"
-          className="fixed inset-x-0 bottom-0 z-[55] rounded-t-xl border-t border-cream-dark/45 bg-cream/95 pt-3 backdrop-blur-sm pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+          className="fixed inset-x-0 bottom-0 z-[55] rounded-t-xl border-t border-cream-dark/45 bg-cream pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
           role="status"
           aria-live="polite"
         >
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 ps-4 pe-[max(1rem,calc(env(safe-area-inset-right)+4.25rem))] sm:pe-24">
-            <p className="min-w-0 truncate font-display text-lg font-semibold tabular-nums text-ink sm:text-xl">
+          <div className="mx-auto flex max-w-6xl flex-col gap-2 ps-4 pe-[max(1rem,calc(env(safe-area-inset-right)+4.25rem))] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pe-24">
+            <p className="min-w-0 truncate text-center font-display text-base font-semibold tabular-nums text-ink sm:text-start sm:text-lg md:text-xl">
               סה״כ להזמנה ₪{cartBarOrderTotal}
             </p>
-            {canSendCartWhatsApp ? (
-              <div className="inline-flex shrink-0 items-stretch overflow-hidden rounded-full border border-cream/40 bg-cocoa text-cream shadow-sm">
-                <Link
-                  to="/checkout"
-                  className="inline-flex min-h-11 touch-manipulation items-center justify-center px-4 py-2 text-sm font-semibold text-cream transition hover:bg-gold-deep active:opacity-90"
-                >
-                  לסיום ההזמנה
-                </Link>
-                <span
-                  className="pointer-events-none flex items-center justify-center border-s border-cream/30 px-2.5 sm:px-3"
-                  aria-hidden
-                >
-                  <ShoppingCart className="size-[1.1rem] shrink-0 sm:size-5" strokeWidth={2} />
-                </span>
-              </div>
+            {canProceedToCheckout ? (
+              <Link
+                to="/checkout"
+                className={`${premiumActionButtonClass} min-h-11 w-full shrink-0 justify-center ps-5 pe-4 sm:w-auto sm:pe-5`}
+              >
+                <span>לסיום ההזמנה</span>
+                <ShoppingCart className="size-[1.1rem] shrink-0 opacity-90 sm:size-5" strokeWidth={2} aria-hidden />
+              </Link>
             ) : (
               <button
                 type="button"
-                className="inline-flex min-h-11 shrink-0 touch-manipulation items-center justify-center rounded-full border border-cream-dark/80 bg-cream-dark/45 px-4 py-2 text-sm font-semibold text-ink-muted transition active:bg-cream-dark/65"
+                className="inline-flex min-h-11 w-full shrink-0 touch-manipulation items-center justify-center rounded-full border border-cream-dark/80 bg-cream-dark/45 px-4 py-2 text-sm font-semibold text-ink/90 transition active:bg-cream-dark/65 sm:w-auto"
                 onClick={() => {
-                  const id = cartPackIssueScrollTargetId(cart, catalogProducts)
+                  const id = hasRollsPackMismatch
+                    ? 'catalog-rolls'
+                    : cartPackIssueScrollTargetId(cart, catalogProducts)
                   document.getElementById(id ?? 'catalog-crumbleCookies')?.scrollIntoView({ behavior: 'smooth' })
                 }}
               >
@@ -280,8 +363,12 @@ export default function OrderPage() {
             )}
           </div>
           {cartBarLineCount > 0 ? (
-            <p className="mt-2 px-4 text-center text-sm text-ink/70">
-              מעולה, ההזמנה התחילה. אפשר להוסיף עוד משהו קטן.
+            <p className="mt-1.5 px-4 pb-0.5 text-center text-sm font-medium text-ink/90">
+              {hasRollsPackMismatch
+                ? `יש להשלים מארז מגולגלות ל־${ROLLS_PACK_SIZE} יחידות (או מכפלות של ${ROLLS_PACK_SIZE}) לפני מעבר לסל.`
+                : hasCrumblePackMismatch
+                  ? 'יש להתאים את כמות קראמבל למארזי 4 ו־6 בלבד (למשל 4, 6, 8, 10, 12…; לא 5, 7, 9).'
+                  : 'מעולה, ההזמנה התחילה. אפשר להוסיף עוד משהו קטן.'}
             </p>
           ) : null}
         </div>

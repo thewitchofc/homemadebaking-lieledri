@@ -1,19 +1,16 @@
-import { Link } from 'react-router-dom'
-import { Quote, Star } from 'lucide-react'
 import { DocumentMeta } from '../components/DocumentMeta'
-import { defaultWaMessage, site } from '../siteConfig'
+import { site } from '../siteConfig'
+import { sectionInner, sectionShell, sectionTitleClass, sectionTitleToContentClass } from '../sectionLayout'
 import { recommendationCards } from '../recommendationsPhotos'
-import { WaButton } from '../components/WaButton'
 
-const testimonialCardClass =
-  'flex h-full flex-col overflow-hidden bg-white/90 backdrop-blur rounded-2xl shadow-lg p-6'
+const photoCardClass = 'overflow-hidden rounded-2xl border border-cocoa/15 ring-1 ring-cocoa/10'
 
 export default function RecommendationsPage() {
   return (
     <>
       <DocumentMeta
         title={`המלצות מלקוחות | ${site.brandHe}`}
-        description="המלצות מילוליות ותמונות אמיתיות מלקוחות על מארזי קינוחים ומגולגלות — Homemade Baking של ליאל אדרי."
+        description={`תמונות המלצות מלקוחות — ${site.brandHe}.`}
       />
       <main
         id="main"
@@ -51,31 +48,29 @@ export default function RecommendationsPage() {
           aria-hidden
         />
 
-        <div className="relative z-10 overflow-x-hidden pb-8 pt-6 sm:pb-10 sm:pt-8 lg:pt-10">
-        <header className="mx-auto max-w-3xl border-b border-stone-200/40 px-4 pb-8 text-center sm:px-6 sm:pb-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-deep/90 sm:text-sm">
-            {site.brandEn}
-          </p>
-          <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl lg:text-[2.5rem]">
-            המלצות מלקוחות
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-ink sm:mt-5 sm:text-lg">
-            צילומים אמיתיים מהסטוריז, לצד מילים של מזמינים שנהנו מהמגולגלות והמארזים. תודה על האמון.
-          </p>
+        <div className="relative z-10 overflow-x-hidden">
+        <header className={`border-b border-cocoa/12 ${sectionShell}`}>
+          <div className={`${sectionInner} max-w-3xl text-center`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-deep/90 sm:text-sm">
+              {site.brandEn}
+            </p>
+            <h1 className={`${sectionTitleClass} mt-2`}>המלצות מלקוחות</h1>
+          </div>
         </header>
 
-        <section
-          className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12"
-          aria-label="המלצות ותמונות מלקוחות"
-        >
-          <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-7 xl:grid-cols-3 xl:gap-8">
+        <section className={sectionShell} aria-labelledby="recommendations-gallery-heading">
+          <div className={sectionInner}>
+          <h2 id="recommendations-gallery-heading" className={sectionTitleClass}>
+            גלריית תמונות
+          </h2>
+          <ul className={`grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 ${sectionTitleToContentClass}`}>
             {recommendationCards.map((item, i) => (
-              <li key={item.src} className="min-w-0">
-                <article className={testimonialCardClass}>
-                  <div className="relative mx-auto aspect-[9/16] w-full max-w-[14.5rem] overflow-hidden rounded-xl ring-1 ring-stone-200/60 sm:max-w-[15.5rem]">
+              <li key={item.src} className="mx-auto min-w-0 w-full max-w-[15.5rem] sm:max-w-[16.5rem] lg:max-w-[17rem]">
+                <article className={photoCardClass}>
+                  <div className="relative aspect-[9/16] w-full overflow-hidden">
                     <img
                       src={item.src}
-                      alt={`תמונת לקוח — ${item.author}, ${i + 1} מתוך ${recommendationCards.length}`}
+                      alt={`תמונת המלצה ${i + 1} מתוך ${recommendationCards.length}`}
                       className="absolute inset-0 h-full w-full object-cover object-center"
                       width={1080}
                       height={1920}
@@ -83,59 +78,10 @@ export default function RecommendationsPage() {
                       decoding="async"
                     />
                   </div>
-                  <Quote
-                    className="mt-6 size-9 shrink-0 text-gold-deep/45"
-                    strokeWidth={1.25}
-                    aria-hidden
-                  />
-                  <blockquote className="mt-3 min-w-0 flex-1">
-                    <p className="text-base font-normal leading-relaxed text-ink sm:text-lg">{item.quote}</p>
-                  </blockquote>
-                  <footer className="mt-6 flex items-center gap-3 border-t border-stone-200/55 pt-6">
-                    <div
-                      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cocoa/12 to-cocoa/6 font-display text-sm font-semibold text-cocoa ring-1 ring-stone-200/50"
-                      aria-hidden
-                    >
-                      {item.initial}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-sm text-ink">{item.author}</p>
-                      <div
-                        className="mt-1.5 flex gap-0.5 text-gold-deep"
-                        aria-label="חמש כוכבים מתוך חמש"
-                      >
-                        {Array.from({ length: 5 }, (_, si) => (
-                          <Star
-                            key={si}
-                            className="size-4 fill-gold-deep stroke-gold-deep"
-                            strokeWidth={1}
-                            aria-hidden
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </footer>
                 </article>
               </li>
             ))}
           </ul>
-        </section>
-
-        <section className="mx-auto max-w-xl px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 text-center sm:px-6 sm:pb-2">
-          <div className="bg-white/90 backdrop-blur rounded-2xl shadow-lg p-6">
-            <p className="text-base leading-relaxed text-ink sm:text-lg">
-              רוצים להצטרף למזמינים המרוצים? הזמינו בוואטסאפ או{' '}
-              <Link
-                to="/order"
-                className="rounded-sm font-semibold text-gold-deep underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
-              >
-                עברו לתפריט המתוקים
-              </Link>
-              .
-            </p>
-            <WaButton message={defaultWaMessage} className="mt-7">
-              דברו איתי בוואטסאפ
-            </WaButton>
           </div>
         </section>
         </div>

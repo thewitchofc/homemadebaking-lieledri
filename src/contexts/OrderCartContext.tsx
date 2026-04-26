@@ -6,11 +6,8 @@ import {
   useMemo,
   useReducer,
   useRef,
-  useState,
   type ReactNode,
 } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { Check, ShoppingCart } from 'lucide-react'
 import { gaEvent } from '../analytics'
 import {
   GREETING_CARD_PRODUCT_ID,
@@ -22,7 +19,6 @@ import {
   cartLineTotal,
   catalogProducts,
   crumbleCookiesQtyInCart,
-  getCartDisplayCount,
   sumRollsDraft,
   type CartState,
 } from '../catalog'
@@ -155,9 +151,6 @@ type OrderCartContextValue = {
   cartWaMessage: string
   crumbleCookiesQty: number
   canSendCartWhatsApp: boolean
-  /** טוסט קצר אחרי הוספת פריט (לפי עלייה ב־totalOrderUnits) */
-  addToCartToastOpen: boolean
-  dismissAddToCartToast: () => void
   greetingCardText: string
   setGreetingCardText: (text: string) => void
 }
@@ -250,25 +243,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialRoot, initOrderRoot)
   const stateRef = useRef(state)
   stateRef.current = state
-  const [addToCartToastOpen, setAddToCartToastOpen] = useState(false)
-  const toastHideTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
-  const dismissAddToCartToast = useCallback(() => {
-    if (toastHideTimerRef.current !== undefined) {
-      clearTimeout(toastHideTimerRef.current)
-      toastHideTimerRef.current = undefined
-    }
-    setAddToCartToastOpen(false)
-  }, [])
-
-  const scheduleAddToCartToastHide = useCallback(() => {
-    if (toastHideTimerRef.current !== undefined) clearTimeout(toastHideTimerRef.current)
-    toastHideTimerRef.current = setTimeout(() => {
-      setAddToCartToastOpen(false)
-      toastHideTimerRef.current = undefined
-    }, 2600)
-  }, [])
-
   const setQty = useCallback(
     (productId: number, nextQty: number) => {
       const action = { type: 'SET_QTY' as const, productId, nextQty }
@@ -277,12 +251,10 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       const nextU = totalOrderUnits(nextRoot)
       if (nextU > prevU) {
         gaEvent('add_to_cart', { product_id: productId })
-        setAddToCartToastOpen(true)
-        scheduleAddToCartToastHide()
       }
       dispatch(action)
     },
-    [state, scheduleAddToCartToastHide],
+    [state],
   )
 
   const setGreetingCardText = useCallback((text: string) => {
@@ -301,6 +273,21 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
     window.addEventListener('pagehide', flush)
     return () => window.removeEventListener('pagehide', flush)
   }, [])
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasItems =
+        Object.values(cart).some((q) => q > 0) || Object.values(rollsDraft).some((q) => q > 0)
+      if (!hasItems) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [cart, rollsDraft])
 
   /** חזרה ללשונית / מטמון דפדפן / טאב אחר — מסנכרן מה־localStorage כדי שלא תאבד עגלה בזיכרון */
   useEffect(() => {
@@ -338,12 +325,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  useEffect(
-    () => () => {
-      if (toastHideTimerRef.current !== undefined) clearTimeout(toastHideTimerRef.current)
-    },
-    [],
-  )
   const rollsDraftTotal = useMemo(() => sumRollsDraft(rollsDraft, catalogProducts), [rollsDraft])
 
   const itemsInCart = cartDisplayItemCount(cart, catalogProducts)
@@ -371,8 +352,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       cartWaMessage,
       crumbleCookiesQty,
       canSendCartWhatsApp,
-      addToCartToastOpen,
-      dismissAddToCartToast,
       greetingCardText,
       setGreetingCardText,
     }),
@@ -387,8 +366,6 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
       cartWaMessage,
       crumbleCookiesQty,
       canSendCartWhatsApp,
-      addToCartToastOpen,
-      dismissAddToCartToast,
       greetingCardText,
       setGreetingCardText,
     ],
@@ -397,81 +374,7 @@ export function OrderCartProvider({ children }: { children: ReactNode }) {
   return (
     <OrderCartContext.Provider value={value}>
       {children}
-      <CartAddedToast />
     </OrderCartContext.Provider>
-  )
-}
-
-function CartAddedToast() {
-  const { addToCartToastOpen, dismissAddToCartToast, cart, rollsDraft } = useOrderCart()
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
-
-  if (!addToCartToastOpen) return null
-
-  const displayCount = getCartDisplayCount(cart, rollsDraft, catalogProducts)
-  const orderCount = Math.max(1, displayCount)
-  const toastMain =
-    orderCount === 1 ? (
-      <span className="inline-flex items-center justify-center gap-1.5">
-        <Check className="size-[18px] shrink-0 text-cream" strokeWidth={2} aria-hidden />
-        הוספת פריט להזמנה
-      </span>
-    ) : (
-      <span className="inline-flex items-center justify-center gap-1.5">
-        <Check className="size-[18px] shrink-0 text-cream" strokeWidth={2} aria-hidden />
-        {`${orderCount} פריטים בהזמנה`}
-      </span>
-    )
-
-  const goToOrder = () => {
-    dismissAddToCartToast()
-    const scrollTarget = () => {
-      const bar = document.getElementById('order-cart-bar')
-      const catalog = document.getElementById('order-catalog')
-      ;(bar ?? catalog)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-    if (pathname !== '/order') {
-      navigate('/order')
-      window.setTimeout(scrollTarget, 120)
-      return
-    }
-    scrollTarget()
-  }
-
-  return (
-    <div
-      className="pointer-events-none fixed left-1/2 z-[70] w-max max-w-[min(32rem,calc(100vw-1.5rem))] -translate-x-1/2"
-      style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
-      role="status"
-      aria-live="polite"
-    >
-      <div
-        className="pointer-events-auto flex max-w-lg flex-wrap items-center justify-center gap-2 rounded-xl bg-cocoa px-4 py-2 text-sm font-medium text-cream shadow-md sm:flex-nowrap sm:gap-3"
-      >
-        <div className="flex min-w-0 flex-col items-center text-center">
-          <span>{toastMain}</span>
-          <span className="mt-1 text-xs font-normal leading-snug text-cream/80">
-            אפשר כבר לשלוח הזמנה
-          </span>
-        </div>
-        <div className="inline-flex shrink-0 items-stretch overflow-hidden rounded-lg border border-cream/35 bg-cream/15 text-cream">
-          <button
-            type="button"
-            onClick={goToOrder}
-            className="px-2.5 py-1 text-xs font-semibold text-cream transition hover:bg-cream/25 active:opacity-90"
-          >
-            לסיום ההזמנה
-          </button>
-          <span
-            className="pointer-events-none flex items-center justify-center border-s border-cream/30 px-2"
-            aria-hidden
-          >
-            <ShoppingCart className="size-3.5 shrink-0" strokeWidth={2} />
-          </span>
-        </div>
-      </div>
-    </div>
   )
 }
 

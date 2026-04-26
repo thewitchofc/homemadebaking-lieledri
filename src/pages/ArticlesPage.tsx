@@ -5,6 +5,14 @@ import { articles } from '../articlesData'
 import { site } from '../siteConfig'
 import { defaultWaMessage } from '../siteConfig'
 import { WaButton } from '../components/WaButton'
+import {
+  sectionBodyClass,
+  sectionDescClass,
+  sectionInner,
+  sectionShell,
+  sectionTitleClass,
+  sectionTitleToContentClass,
+} from '../sectionLayout'
 
 export default function ArticlesPage() {
   return (
@@ -13,22 +21,26 @@ export default function ArticlesPage() {
         title={`מאמרים וטיפים | ${site.brandHe}`}
         description="מאמרים קצרים על בחירת קינוחים, אריזה לאירוע והזמנה נכונה — מאתר האפייה הביתית של ליאל אדרי."
       />
-      <section className="border-b border-cream-dark/50 bg-cream-dark/25 py-12 sm:py-16">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-          <h1 className="font-display text-3xl font-medium text-ink sm:text-4xl">מאמרים וטיפים</h1>
-          <p className="mt-4 text-sm leading-relaxed text-ink-muted sm:text-base">
+      <section className={`border-b border-cream-dark/50 bg-cream-dark/25 ${sectionShell}`}>
+        <div className={`${sectionInner} max-w-3xl text-center`}>
+          <h1 className={sectionTitleClass}>מאמרים וטיפים</h1>
+          <p className={`${sectionDescClass} mt-2 mx-auto max-w-2xl leading-relaxed`}>
             רעיונות, מדריכים קצרים ומידע שיעזרו לכם לבחור נכון, במיוחד אם אתם מראשון לציון והסביבה
             ומחפשים קינוח בוטיק ביתי בהזמנה אישית.
           </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16" aria-label="רשימת מאמרים">
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
+      <section className={sectionShell} aria-labelledby="articles-list-heading">
+        <div className={sectionInner}>
+        <h2 id="articles-list-heading" className={sectionTitleClass}>
+          כל המאמרים
+        </h2>
+        <ul className={`grid gap-6 sm:grid-cols-2 lg:grid-cols-2 ${sectionTitleToContentClass}`}>
           {articles.map((a) => (
             <li key={a.slug}>
-              <article className="flex h-full flex-col rounded-2xl border border-cream-dark/80 bg-cream p-6 shadow-sm transition hover:border-gold/40 hover:shadow-md">
-                <BookOpen className="mb-3 size-9 text-gold-deep/80" strokeWidth={1.25} aria-hidden />
+              <article className="flex h-full flex-col gap-4 rounded-2xl border border-cream-dark/80 bg-cream p-6 shadow-sm transition hover:border-gold/40 hover:shadow-md">
+                <BookOpen className="size-9 text-gold-deep/80" strokeWidth={1.25} aria-hidden />
                 <h2 className="font-display text-lg font-medium leading-snug text-ink sm:text-xl">
                   <Link
                     to={`/articles/${a.slug}`}
@@ -37,10 +49,10 @@ export default function ArticlesPage() {
                     {a.title}
                   </Link>
                 </h2>
-                <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-muted">{a.excerpt}</p>
+                <p className="flex-1 text-sm leading-relaxed text-ink-muted">{a.excerpt}</p>
                 <Link
                   to={`/articles/${a.slug}`}
-                  className="mt-5 inline-flex rounded-sm text-sm font-semibold text-gold-deep underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
+                  className="inline-flex rounded-sm text-sm font-semibold text-gold-deep underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
                 >
                   לקריאת המאמר
                 </Link>
@@ -48,11 +60,16 @@ export default function ArticlesPage() {
             </li>
           ))}
         </ul>
+        </div>
       </section>
 
-      <section className="mx-auto max-w-xl px-4 text-center sm:px-6">
-        <p className="text-sm text-ink-muted">
-          מוכנים להזמין?{' '}
+      <section className={sectionShell} aria-labelledby="articles-cta-heading">
+        <div className={`${sectionInner} max-w-xl text-center`}>
+        <h2 id="articles-cta-heading" className={sectionTitleClass}>
+          מוכנים להזמין?
+        </h2>
+        <div className={`${sectionBodyClass} ${sectionTitleToContentClass} items-center`}>
+        <p className={sectionDescClass}>
           <Link
             to="/order"
             className="rounded-sm font-semibold text-gold-deep underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
@@ -61,9 +78,11 @@ export default function ArticlesPage() {
           </Link>{' '}
           או שיחה ישירה בוואטסאפ.
         </p>
-        <WaButton message={defaultWaMessage} className="mt-6">
+        <WaButton message={defaultWaMessage}>
           דברו איתי בוואטסאפ
         </WaButton>
+        </div>
+        </div>
       </section>
     </main>
   )

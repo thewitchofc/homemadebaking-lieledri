@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { sectionInner, sectionShell } from '../sectionLayout'
 
 const HERO_BG = '/images/hero.jpg'
 
@@ -9,7 +10,7 @@ type HomeHeroProps = {
 export function HomeHero({ children }: HomeHeroProps) {
   return (
     <section
-      className="relative flex min-h-[100svh] w-full items-center justify-center overflow-hidden border-b border-cream-dark/60"
+      className={`flex min-h-[100svh] w-full items-center justify-center overflow-hidden ${sectionShell}`}
       aria-label="פתיחה"
     >
       <div
@@ -22,7 +23,9 @@ export function HomeHero({ children }: HomeHeroProps) {
         style={{ background: 'rgba(255,255,255,0.6)' }}
         aria-hidden
       />
-      <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col items-center justify-center px-5 pb-24 pt-16 text-center sm:px-8 sm:pt-20">
+      <div
+        className={`relative z-10 flex w-full flex-col items-center justify-center text-center ${sectionInner}`}
+      >
         {children}
       </div>
     </section>

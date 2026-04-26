@@ -30,6 +30,15 @@ import { gaEvent } from '../analytics'
 import { useOrderCart } from '../contexts/OrderCartContext'
 import { DocumentMeta } from '../components/DocumentMeta'
 import { site, siteSeo, whatsappLink } from '../siteConfig'
+import {
+  premiumActionButtonClass,
+  sectionBodyClass,
+  sectionDescClass,
+  sectionInner,
+  sectionShell,
+  sectionTitleClass,
+  sectionTitleToContentClass,
+} from '../sectionLayout'
 
 type PaymentMethod = 'card' | 'bit_paybox' | 'cash'
 
@@ -77,7 +86,7 @@ function mergedCartForWhatsApp(cart: CartState, rollsDraft: CartState): CartStat
   const out: CartState = { ...cart }
   for (const p of catalogProducts) {
     if (p.category !== 'rolls') continue
-    const c = cart[p.id] ?? 0
+  const c = cart[p.id] ?? 0
     const d = rollsDraft[p.id] ?? 0
     const q = c + d
     if (q > 0) out[p.id] = q
@@ -114,7 +123,7 @@ const paymentLabels: Record<PaymentMethod, string> = {
   cash: 'מזומן לשליח',
 }
 
-const checkoutCardClass = 'bg-white/90 backdrop-blur rounded-2xl shadow-lg p-6'
+const checkoutCardClass = 'rounded-2xl border border-cream-dark/40 bg-white p-6'
 
 export default function CheckoutPage() {
   const {
@@ -373,29 +382,31 @@ export default function CheckoutPage() {
           className="pointer-events-none fixed bottom-0 left-0 right-0 top-[var(--header-h)] z-0 bg-[url('/noise.png')] bg-repeat opacity-[0.035] mix-blend-multiply"
           aria-hidden
         />
-        <div className="relative z-10 mx-auto max-w-lg px-4 pb-[max(6rem,calc(env(safe-area-inset-bottom)+3rem))] pt-4 sm:px-6 sm:pt-8">
-        <header className="mb-8 text-center sm:mb-10">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
-            פרטי הזמנה
-          </h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink-muted">
+        <div className={`relative z-10 ${sectionShell}`}>
+          <div
+            className={`${sectionInner} mx-auto flex max-w-lg flex-col gap-6 pb-[max(6rem,calc(env(safe-area-inset-bottom)+3rem))]`}
+          >
+        <header className="flex flex-col gap-2 text-center">
+          <h1 className={sectionTitleClass}>פרטי הזמנה</h1>
+          <p className={`${sectionDescClass} mx-auto max-w-sm leading-relaxed`}>
             סיכום העגלה, כתובת למשלוח ואמצעי תשלום — שליחה אחת לוואטסאפ לאישור.
           </p>
         </header>
 
         <section className={checkoutCardClass} aria-labelledby="checkout-summary-heading">
-          <h2 id="checkout-summary-heading" className="text-base font-semibold text-ink">
+          <h2 id="checkout-summary-heading" className={sectionTitleClass}>
             סיכום הזמנה
           </h2>
-          <ul className="mt-4 divide-y divide-cream-dark/50">
+          <div className={`${sectionBodyClass} ${sectionTitleToContentClass}`}>
+          <ul className="divide-y divide-cream-dark/50">
             {cartPreviewLines.map((line) => {
               const product = catalogProducts.find((p) => p.id === line.productId)
               const lineTotal = product
                 ? cartLinePriceForProduct(product, line.qty)
                 : 0
               return (
-                <li
-                  key={line.productId}
+            <li
+              key={line.productId}
                   className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3.5 first:pt-0"
                 >
                   <span className="min-w-0 flex-1 text-sm font-medium leading-snug text-ink">
@@ -405,10 +416,10 @@ export default function CheckoutPage() {
                   <span className="w-full text-end text-sm font-semibold tabular-nums text-ink sm:w-auto sm:text-start">
                     ₪{lineTotal}
                   </span>
-                </li>
+            </li>
               )
             })}
-          </ul>
+        </ul>
           <div className="mt-4 border-t border-cream-dark/60 pt-4">
             {deliveryMethod === 'delivery' ? (
               <div className="space-y-1.5 text-sm">
@@ -423,8 +434,8 @@ export default function CheckoutPage() {
                 <p className="flex justify-between gap-4 pt-1 font-display text-lg font-semibold tabular-nums text-ink">
                   <span>סה״כ לתשלום</span>
                   <span>₪{checkoutGrandTotal}</span>
-                </p>
-              </div>
+                      </p>
+                    </div>
             ) : (
               <p className="flex justify-between gap-4 font-display text-lg font-semibold tabular-nums text-ink">
                 <span>סה״כ לתשלום</span>
@@ -438,29 +449,31 @@ export default function CheckoutPage() {
           {rollsPacksInCart > 0 ? (
             <p className="mt-1 text-xs text-ink-muted">מארזי מגולגלות בעגלה: {rollsPacksInCart}</p>
           ) : null}
+        </div>
         </section>
 
         {crumbleCookiesQty > 0 && !isValidCrumblePackTotal(crumbleCookiesQty) ? (
-          <p className="mt-5 rounded-2xl border border-gold-deep/40 bg-gold/10 px-4 py-3 text-sm leading-relaxed text-ink">
+          <p className="rounded-2xl border border-gold-deep/40 bg-gold/10 px-4 py-3 text-sm leading-relaxed text-ink">
             {crumblePackIssueDescription(crumbleCookiesQty)}
           </p>
         ) : null}
         {rollsQty > 0 && !isValidRollsPackTotal(rollsQty) ? (
-          <p className="mt-5 rounded-2xl border border-gold-deep/40 bg-gold/10 px-4 py-3 text-sm leading-relaxed text-ink">
+          <p className="rounded-2xl border border-gold-deep/40 bg-gold/10 px-4 py-3 text-sm leading-relaxed text-ink">
             {rollsPackIssueDescription(rollsQty)}
           </p>
         ) : null}
 
         {canSendCartWhatsApp ? (
-          <>
-            <section className={`mt-6 ${checkoutCardClass}`} aria-labelledby="checkout-schedule-heading">
-              <h2 id="checkout-schedule-heading" className="text-base font-semibold text-ink">
+          <div className="flex flex-col gap-6">
+            <section className={checkoutCardClass} aria-labelledby="checkout-schedule-heading">
+              <h2 id="checkout-schedule-heading" className={sectionTitleClass}>
                 אופן קבלה, תאריך ושעה
               </h2>
-              <p className="mt-1 text-xs leading-relaxed text-ink/60">
+              <p className={`${sectionDescClass} mt-2 text-xs leading-relaxed`}>
                 נדרש לתיאום איסוף או משלוח. במשלוח מתווספים ₪{deliveryFee} ל־{site.deliveryFeeCenterArea}.
               </p>
-              <div className="mt-4 flex gap-2" role="group" aria-label="אופן קבלה">
+              <div className={`${sectionBodyClass} ${sectionTitleToContentClass}`}>
+              <div className="flex gap-2" role="group" aria-label="אופן קבלה">
                 <button
                   type="button"
                   onClick={() => setDeliveryMethod('pickup')}
@@ -480,61 +493,61 @@ export default function CheckoutPage() {
               <div className="mt-5">
                 <label htmlFor="checkout-delivery-date" className={labelClass}>
                   תאריך
-                </label>
+              </label>
                 <p className="mt-0.5 text-xs text-ink/55">ימים רביעי–שישי בלבד</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(
-                    [
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(
+                  [
                       { dow: 5 as const, label: 'שישי' },
                       { dow: 4 as const, label: 'חמישי' },
-                      { dow: 3 as const, label: 'רביעי הקרוב' },
-                    ] as const
-                  ).map(({ dow, label }) => {
-                    const iso = getNextCheckoutDateForWeekday(dow)
-                    const active = deliveryDate === iso
-                    return (
-                      <button
-                        key={dow}
-                        type="button"
-                        onClick={() => setDeliveryDate(iso)}
-                        className={[
+                    { dow: 3 as const, label: 'רביעי הקרוב' },
+                  ] as const
+                ).map(({ dow, label }) => {
+                  const iso = getNextCheckoutDateForWeekday(dow)
+                  const active = deliveryDate === iso
+                  return (
+                    <button
+                      key={dow}
+                      type="button"
+                      onClick={() => setDeliveryDate(iso)}
+                      className={[
                           'touch-manipulation rounded-xl border px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep',
-                          active
-                            ? 'border-cocoa bg-cocoa text-cream'
-                            : 'border-cream-dark/70 bg-cream text-ink hover:bg-cream-dark/35',
-                        ].join(' ')}
-                      >
-                        {label}
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="mt-2 [&_.react-datepicker-wrapper]:w-full" dir="rtl">
-                  <DatePicker
-                    id="checkout-delivery-date"
-                    selected={selectedDeliveryDate}
-                    onChange={(date: Date | null) => {
-                      if (!date) {
-                        setDeliveryDate(null)
-                        return
-                      }
-                      setDeliveryDate(localDateToIso(date))
-                    }}
-                    filterDate={filterCheckoutDate}
-                    locale={he}
-                    calendarStartDay={0}
-                    formatWeekDay={formatCheckoutWeekDayLabel}
-                    dateFormat="dd/MM/yyyy"
-                    placeholderText="בחרו תאריך"
-                    wrapperClassName="w-full"
-                    className={`${inputClass} mt-2`}
-                    calendarClassName="!font-sans"
-                    popperClassName="z-50"
-                    showPopperArrow={false}
-                    autoComplete="off"
-                  />
-                </div>
+                        active
+                          ? 'border-cocoa bg-cocoa text-cream'
+                          : 'border-cream-dark/70 bg-cream text-ink hover:bg-cream-dark/35',
+                      ].join(' ')}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
               </div>
+              <div className="mt-2 [&_.react-datepicker-wrapper]:w-full" dir="rtl">
+                <DatePicker
+                  id="checkout-delivery-date"
+                  selected={selectedDeliveryDate}
+                  onChange={(date: Date | null) => {
+                    if (!date) {
+                      setDeliveryDate(null)
+                      return
+                    }
+                    setDeliveryDate(localDateToIso(date))
+                  }}
+                  filterDate={filterCheckoutDate}
+                  locale={he}
+                  calendarStartDay={0}
+                  formatWeekDay={formatCheckoutWeekDayLabel}
+                  dateFormat="dd/MM/yyyy"
+                    placeholderText="בחרו תאריך"
+                  wrapperClassName="w-full"
+                    className={`${inputClass} mt-2`}
+                  calendarClassName="!font-sans"
+                  popperClassName="z-50"
+                  showPopperArrow={false}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
 
               {deliveryDate && timeSlots.length > 0 ? (
                 <div className="mt-5">
@@ -558,21 +571,22 @@ export default function CheckoutPage() {
                       )
                     })}
                   </select>
-                </div>
-              ) : null}
+          </div>
+        ) : null}
 
               {submitAttempted && canSendCartWhatsApp && !checkoutReadyForSchedule ? (
                 <p className="mt-3 text-xs text-red-800/90" role="alert">
                   יש לבחור אופן קבלה, תאריך ושעה מועדפת.
                 </p>
               ) : null}
+              </div>
             </section>
 
-            <section className={`mt-6 ${checkoutCardClass}`} aria-labelledby="checkout-shipping-heading">
-              <h2 id="checkout-shipping-heading" className="text-base font-semibold text-ink">
+            <section className={checkoutCardClass} aria-labelledby="checkout-shipping-heading">
+              <h2 id="checkout-shipping-heading" className={sectionTitleClass}>
                 {deliveryMethod === 'delivery' ? 'פרטי משלוח' : 'פרטי קשר'}
               </h2>
-              <div className="mt-5 space-y-4">
+              <div className={`space-y-4 ${sectionTitleToContentClass}`}>
                 <div>
                   <label htmlFor="co-fullname" className={labelClass}>
                     שם מלא <span className="text-red-800/80">*</span>
@@ -740,12 +754,16 @@ export default function CheckoutPage() {
               </div>
             </section>
 
-            <section className={`mt-6 ${checkoutCardClass}`} aria-labelledby="checkout-pay-heading">
-              <h2 id="checkout-pay-heading" className="text-base font-semibold text-ink">
+            <section className={checkoutCardClass} aria-labelledby="checkout-pay-heading">
+              <h2 id="checkout-pay-heading" className={sectionTitleClass}>
                 תשלום
               </h2>
-              <p className="mt-1 text-xs text-ink/60">בחירת אמצעי — האישור והתשלום בוואטסאפ.</p>
-              <div className="mt-4 flex flex-col gap-2.5" role="radiogroup" aria-label="אמצעי תשלום">
+              <p className={`${sectionDescClass} mt-2 text-xs`}>בחירת אמצעי — האישור והתשלום בוואטסאפ.</p>
+              <div
+                className={`flex flex-col gap-3 ${sectionTitleToContentClass}`}
+                role="radiogroup"
+                aria-label="אמצעי תשלום"
+              >
                 {(['card', 'bit_paybox', 'cash'] as const).map((key) => (
                   <button
                     key={key}
@@ -764,36 +782,39 @@ export default function CheckoutPage() {
               ) : null}
             </section>
 
+            <div className="flex flex-col gap-4">
             <button
               type="button"
               disabled={!canSendCartWhatsApp}
               onClick={handleSubmit}
-              className="mt-8 flex min-h-14 w-full touch-manipulation items-center justify-center gap-2 rounded-2xl border border-cocoa/20 bg-cocoa px-5 py-4 text-base font-semibold text-cream shadow-md shadow-cocoa/25 transition hover:bg-gold-deep hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none sm:text-[1.05rem]"
+              className={`${premiumActionButtonClass} min-h-11 w-full justify-center disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:opacity-45 disabled:hover:shadow-none disabled:active:scale-100`}
             >
               <MessageCircle className="size-5 shrink-0 opacity-95" aria-hidden />
               שלח הזמנה
             </button>
-            <p className="mt-3 text-center text-xs text-ink/55">
+            <p className="text-center text-xs text-ink/55">
               ההזמנה נשלחת בוואטסאפ — נחזור אליכם לאישור ולתיאום סופי.
             </p>
-          </>
+            </div>
+          </div>
         ) : (
-          <p className={`mt-8 text-center text-sm text-ink-muted ${checkoutCardClass}`}>
+          <p className={`text-center text-sm text-ink-muted ${checkoutCardClass}`}>
             להמשך — חזרו לתפריט והתאימו כמויות למארזים: קראמבל (4/6) או מגולגלות (12).
           </p>
         )}
 
-        <p className="mt-8 flex justify-center">
+        <p className="flex justify-center">
           <Link
             to="/order"
-            className="inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-gold-deep underline-offset-4 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
+            className="inline-flex items-center gap-2 rounded-sm text-sm font-semibold text-gold-deep underline-offset-4 transition hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
           >
             <ArrowRight className="size-4 rotate-180" aria-hidden />
             חזרה לתפריט מתוקים
           </Link>
         </p>
+          </div>
         </div>
-      </main>
+    </main>
     </>
   )
 }

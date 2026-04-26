@@ -91,6 +91,6 @@ export const siteImages = {
   /** מטרפה PNG שקוף, סרגל עליון (מ־public/logo-whisk-mark.png) */
   headerWhiskMark: '/logo-whisk-mark.png?v=2',
   /** פורטרט ליאל, דף הבית, מקטע אודות */
-  lielPortrait: '/liel-portrait.png?v=1',
+  lielPortrait: '/liel-portrait.png?v=2',
 } as const
 

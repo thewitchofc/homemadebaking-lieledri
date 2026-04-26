@@ -1,8 +1,14 @@
 import { legacySiteImage } from './siteConfig'
 
-export type ProductCategory = 'rolls' | 'cookies' | 'crumbleCookies' | 'cakes'
+export type ProductCategory = 'rolls' | 'cookies' | 'crumbleCookies' | 'giantCrumbleDesign' | 'cakes'
 
-export const categoryOrder: ProductCategory[] = ['rolls', 'cookies', 'crumbleCookies', 'cakes']
+export const categoryOrder: ProductCategory[] = [
+  'rolls',
+  'cookies',
+  'crumbleCookies',
+  'cakes',
+  'giantCrumbleDesign',
+]
 
 /** כרטיס ברכה — לא מוצג בגריד הקטגוריות; שורה ייעודית מעל התפריט */
 export const GREETING_CARD_PRODUCT_ID = 99
@@ -13,11 +19,14 @@ export const CRUMBLE_PACK_SIZES = [4, 6] as const
 /** מארז מגולגלות = 12 יחידות בסך הכל; אפשר לערבב טעמים, לא חייבים 12 מאותו טעם */
 export const ROLLS_PACK_SIZE = 12
 
+/** הסבר קצר בדף הזמנה — מעל גריד קראמבל */
+export const CRUMBLE_PACK_ORDER_HINT_HE =
+  'בונים מארז לפי סך יחידות בעגלה מחיר למארז: 4 ב־₪80 · 6 ב־₪120.'
+
 export const categoryLabels: Record<ProductCategory, { title: string; subtitle?: string }> = {
   rolls: {
     title: 'מגולגלות',
-    subtitle:
-      'בוחרים מכל טעם כמה שרוצים עד שמגיעים ל־12 יחידות במארז אחד, ברגע שמגיעים ל־12 המארז עובר אוטומטית לעגלה והמונים מתאפסים. אפשר לערבב טעמים. מארז נוסף, אותו תהליך. בעגלה יוצגו מארזים (1, 2…) לפי כמות היחידות המחולקת ב־12.',
+    subtitle: 'ניתן לערבב טעמים',
   },
   cookies: {
     title: 'עוגיות',
@@ -25,8 +34,11 @@ export const categoryLabels: Record<ProductCategory, { title: string; subtitle?:
   },
   crumbleCookies: {
     title: 'עוגיות קראמבל',
-    subtitle:
-      'אפשר 1, 2, 3… מכל טעם ולשלב בין טעמים, בסך הכל חייב להתאים למארזים של 4 או 6 יחידות בלבד (למשל 4, 6, 8, 10, 12…). לא ניתן 5, 7, 9 וכו׳ (מחיר מארז 4 ב־₪80 או 6 ב־₪120 לפי הסכם)',
+    subtitle: 'ניתן לערבב טעמים',
+  },
+  giantCrumbleDesign: {
+    title: 'עוגות בעיצוב אישי',
+    subtitle: 'עוגות וקראמבל ענקית בהתאמה אישית לאירוח וחגיגות',
   },
   cakes: {
     title: 'עוגות',
@@ -125,7 +137,7 @@ export const catalogProducts: CatalogProduct[] = [
     cardSubtitle: 'דובאי פיסטוק – מהמבוקשות בקראמבל',
     desc: '',
     price: 20,
-    priceLabel: 'מארז 4 ב־₪80 · מארז 6 ב־₪120 (ליחידה)',
+    priceLabel: '',
     imageFile: 'crumble-11.png',
   },
   {
@@ -134,7 +146,7 @@ export const catalogProducts: CatalogProduct[] = [
     title: 'קראמבל אוריאו',
     desc: '',
     price: 20,
-    priceLabel: 'מארז 4 ב־₪80 · מארז 6 ב־₪120 (ליחידה)',
+    priceLabel: '',
     imageFile: 'crumble-17.png',
   },
   {
@@ -143,7 +155,7 @@ export const catalogProducts: CatalogProduct[] = [
     title: 'קראמבל קורנפלקס שוקולד לבן',
     desc: '',
     price: 20,
-    priceLabel: 'מארז 4 ב־₪80 · מארז 6 ב־₪120 (ליחידה)',
+    priceLabel: '',
     imageFile: 'crumble-9.png',
   },
   {
@@ -152,7 +164,7 @@ export const catalogProducts: CatalogProduct[] = [
     title: 'קראמבל הרשיז',
     desc: '',
     price: 20,
-    priceLabel: 'מארז 4 ב־₪80 · מארז 6 ב־₪120 (ליחידה)',
+    priceLabel: '',
     imageFile: 'crumble-10.png',
   },
   {
@@ -161,7 +173,7 @@ export const catalogProducts: CatalogProduct[] = [
     title: 'קראמבל נוטלה',
     desc: '',
     price: 20,
-    priceLabel: 'מארז 4 ב־₪80 · מארז 6 ב־₪120 (ליחידה)',
+    priceLabel: '',
     imageFile: 'crumble-12.png',
   },
   {
@@ -170,7 +182,7 @@ export const catalogProducts: CatalogProduct[] = [
     title: 'קראמבל שוקולד לבן',
     desc: '',
     price: 20,
-    priceLabel: 'מארז 4 ב־₪80 · מארז 6 ב־₪120 (ליחידה)',
+    priceLabel: '',
     imageFile: 'crumble-13.png',
   },
   {
@@ -179,15 +191,34 @@ export const catalogProducts: CatalogProduct[] = [
     title: 'קראמבל קינדר',
     desc: '',
     price: 20,
-    priceLabel: 'מארז 4 ב־₪80 · מארז 6 ב־₪120 (ליחידה)',
+    priceLabel: '',
     imageFile: 'crumble-14.png',
+  },
+  {
+    id: 18,
+    category: 'giantCrumbleDesign',
+    title: 'קראמבל ענקית בעיצוב אישי',
+    featured: true,
+    desc: 'קראמבל ענקית עם עיצוב אישי ליום הולדת, אירוע והפתעה מיוחדת.',
+    price: 149,
+    priceLabel: 'ליחידה',
+    imageFile: 'crumble-giant-personalized.png',
+  },
+  {
+    id: 19,
+    category: 'giantCrumbleDesign',
+    title: 'עוגת יום הולדת מעוצבת',
+    desc: 'עוגת יום הולדת מעוצבת אישית — טקסט, צבעים וסגנון לפי בקשה.',
+    price: 149,
+    priceLabel: 'ליחידה',
+    imageFile: 'cake-birthday-designed.png',
   },
   {
     id: 4,
     category: 'cakes',
     title: 'עוגה מלבנית ביסקוויטים הרשיז',
     desc: 'שכבות של ביסקוויטים, קרם שמנת, שוקולד לבן אוריאו ומעל שכבת הרשיז',
-    price: 60,
+    price: 69,
     priceLabel: 'ליחידה',
     imageFile: 'cake-hershey-biscuits-box.png',
     imageMirrorHorizontal: true,
@@ -197,7 +228,7 @@ export const catalogProducts: CatalogProduct[] = [
     category: 'cakes',
     title: "עוגה מלבנית גבינה וקראנץ' קורנפלקס",
     desc: 'שכבות של ביסקוויטים, קרם גבינה עשיר ומעל פתיתי קורנפלקס',
-    price: 65,
+    price: 69,
     priceLabel: 'ליחידה',
     imageFile: 'cake-cheese-cornflakes-box.png',
     imageMirrorHorizontal: true,
@@ -208,7 +239,7 @@ export const catalogProducts: CatalogProduct[] = [
     title: 'עוגת ארבע שכבות',
     cardSubtitle: 'עוגת שכבות – מהנפוצות',
     desc: 'שכבת עוגת שוקולד, מוס שוקולד, עוגת שוקולד, טופ של נוטלה קראנץ',
-    price: 70,
+    price: 69,
     priceLabel: 'ליחידה',
     imageFile: 'cake-four-layers-box.png',
     imageMirrorHorizontal: true,
@@ -218,7 +249,7 @@ export const catalogProducts: CatalogProduct[] = [
     category: 'cakes',
     title: 'עוגת שוקולד שכבות עם טופ נוטלה וסוכריות',
     desc: 'שכבות שוקולד אווריריות, קרם שוקולד שמנת, שכבת עוגה נוספת, טופ נוטלה וסוכריות צבעוניות',
-    price: 70,
+    price: 79,
     priceLabel: 'ליחידה',
     imageFile: 'cake-chocolate-nutella-sprinkles-round.png',
   },
@@ -282,6 +313,8 @@ const catalogLocalImage: Record<string, string> = {
   'crumble-13.png': '/catalog/crumble-13.png?v=5',
   'crumble-14.png': '/catalog/crumble-14.png?v=5',
   'crumble-17.png': '/catalog/crumble-17.png?v=5',
+  'crumble-giant-personalized.png': '/catalog/crumble-giant-personalized.png?v=4',
+  'cake-birthday-designed.png': '/catalog/cake-birthday-designed.png?v=1',
   'greeting-card.svg': '/catalog/greeting-card.svg?v=2',
 }
 
@@ -476,7 +509,8 @@ export function waMessageForProduct(p: CatalogProduct, qty = 0): string {
     return `היי ליאל, אשמח לפרטים על ${line}. מחיר למארז ₪${p.price} (${p.priceLabel})`
   }
   const sub = q * p.price
-  return `היי ליאל, אשמח לפרטים על ${line}. מחיר ליחידה ₪${p.price} (${p.priceLabel}), סה״כ לשורה ₪${sub}`
+  const packNote = p.priceLabel.trim() ? ` (${p.priceLabel})` : ''
+  return `היי ליאל, אשמח לפרטים על ${line}. מחיר ליחידה ₪${p.price}${packNote}, סה״כ לשורה ₪${sub}`
 }
 
 export function cartLineTotal(cart: CartState, products: CatalogProduct[]): number {

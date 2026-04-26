@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
           if (!gaId) {
             return html.replace(/\s*<!-- GA4-BEGIN -->[\s\S]*?<!-- GA4-END -->\s*/, '')
           }
-          return html.replaceAll('__GA_MEASUREMENT_ID__', gaId)
+          return html.replaceAll('GA_MEASUREMENT_ID', gaId)
         },
       },
     ],

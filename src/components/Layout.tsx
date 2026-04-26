@@ -1,9 +1,10 @@
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
-import { useOrderCart } from '../contexts/OrderCartContext'
 import { defaultWaMessage, site, siteImages, whatsappLink } from '../siteConfig'
 import { InstagramIcon } from './InstagramIcon'
+import { sectionLightAfterDarkTopFadeClass } from '../sectionLayout'
+import { IntroVideoComponent } from './IntroVideoComponent'
 import { WaButton } from './WaButton'
 import { WhatsAppIcon } from './WhatsAppIcon'
 
@@ -22,7 +23,7 @@ function navClassName(isActive: boolean) {
 }
 
 const floatBtnClass =
-  'relative flex size-12 touch-manipulation items-center justify-center rounded-full border border-cream/50 bg-cocoa text-cream shadow-lg shadow-cocoa/35 transition hover:scale-105 hover:bg-gold-deep hover:shadow-xl active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep sm:size-[3.75rem]'
+  'relative flex size-12 touch-manipulation items-center justify-center rounded-full border border-cream/50 bg-cocoa text-cream transition hover:scale-105 hover:bg-gold-deep active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep sm:size-[3.75rem]'
 
 function LatinWordmark({ className = '' }: { className?: string }) {
   return (
@@ -76,30 +77,36 @@ export function HeaderWordmark({
 
 export function Layout() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showIntroVideo, setShowIntroVideo] = useState(false)
   const { pathname } = useLocation()
-  const { showCartChrome } = useOrderCart()
   const isCheckout = pathname === '/checkout'
   const isOrder = pathname === '/order'
-  const isRecommendations = pathname === '/recommendations'
-  const compactFooter = isOrder || isRecommendations
-  const footerBottomPad =
-    isOrder && showCartChrome
-      ? 'pb-[max(7.75rem,calc(env(safe-area-inset-bottom)+6.75rem))] sm:pb-[max(9.25rem,calc(env(safe-area-inset-bottom)+7.75rem))]'
-      : compactFooter
-        ? 'pb-4 sm:pb-5'
-        : 'pb-8'
+  /** פוטר קומפקטי; מרווח מול סרגל עגלה קבוע נשאר ב־OrderPage על ה־main */
+  const footerBottomPad = 'pb-8'
+  const footerInnerClass = isOrder
+    ? 'relative z-10 mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-4 text-center md:flex-row md:items-center md:gap-6 md:py-4 md:text-right'
+    : 'relative z-10 mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 py-8 text-center md:flex-row md:items-center md:gap-8 md:py-6 md:text-right'
+
+  useEffect(() => {
+    if (pathname !== '/') {
+      setShowIntroVideo(false)
+      return
+    }
+    const hasSeen = sessionStorage.getItem('seenIntro')
+    if (!hasSeen) setShowIntroVideo(true)
+  }, [pathname])
 
   return (
     <div className="layout bg-cream text-ink-muted">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow-sm"
       >
         דלג לתוכן
       </a>
 
       <header
-        className={`header sticky top-0 z-50 border-b border-cream-dark/80 bg-cream/90 backdrop-blur-md${isCheckout ? ' border-b-0' : ''}`}
+        className={`header sticky top-0 z-50 border-b border-cream-dark/80 bg-cream/95${isCheckout ? ' border-b-0' : ''}`}
       >
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-6 sm:py-3">
           {isCheckout ? (
@@ -153,7 +160,7 @@ export function Layout() {
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 <WaButton
                   message={defaultWaMessage}
-                  className="!gap-1.5 !py-2 !px-3 !text-xs !shadow-md sm:!gap-2 sm:!py-2.5 sm:!px-4 sm:!text-sm sm:!shadow-lg sm:!px-6 [&_svg]:!size-4 sm:[&_svg]:!size-[1.35rem]"
+                  className="!gap-1.5 !py-2 !px-3 !text-xs sm:!gap-2 sm:!py-2.5 sm:!px-4 sm:!text-sm sm:!px-6 [&_svg]:!size-4 sm:[&_svg]:!size-[1.35rem]"
                 >
                   וואטסאפ
                 </WaButton>
@@ -232,6 +239,14 @@ export function Layout() {
       </header>
 
       <Outlet />
+      {showIntroVideo ? (
+        <IntroVideoComponent
+          onDone={() => {
+            sessionStorage.setItem('seenIntro', 'true')
+            setShowIntroVideo(false)
+          }}
+        />
+      ) : null}
 
       {!isCheckout ? (
         <div
@@ -251,19 +266,12 @@ export function Layout() {
       ) : null}
 
       {!isCheckout ? (
-      <footer className={`border-t border-cream-dark bg-cream text-ink ${footerBottomPad}`}>
-        <div
-          className={[
-            'mx-auto flex max-w-6xl flex-col items-center justify-between px-4 text-center md:flex-row md:items-center md:text-right',
-            compactFooter
-              ? 'gap-3 py-4 md:gap-5 md:py-3'
-              : 'gap-6 py-8 md:gap-8 md:py-6',
-          ].join(' ')}
-          dir="rtl"
-        >
-          <div
-            className={['flex flex-col items-center md:items-start', compactFooter ? 'gap-1' : 'gap-2'].join(' ')}
-          >
+      <footer
+        className={`relative z-20 bg-cream text-ink ${footerBottomPad}`}
+      >
+        <div className={sectionLightAfterDarkTopFadeClass} aria-hidden />
+        <div className={footerInnerClass} dir="rtl">
+          <div className="flex flex-col items-center gap-2 md:items-start">
             <h2 className="m-0">
               <Link
                 to="/"
@@ -272,20 +280,11 @@ export function Layout() {
                 className="inline-flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
                 aria-label={`עמוד הבית, ${site.brandHe}`}
               >
-                <LatinWordmark
-                  className={
-                    compactFooter
-                      ? 'text-base leading-none sm:text-lg'
-                      : 'text-xl leading-none sm:text-2xl'
-                  }
-                />
+                <LatinWordmark className="text-xl leading-none sm:text-2xl" />
               </Link>
             </h2>
             <p
-              className={[
-                'm-0 font-script leading-none text-gold-deep/90',
-                compactFooter ? 'text-xs sm:text-sm' : 'text-sm sm:text-base',
-              ].join(' ')}
+              className="m-0 font-script text-sm leading-none text-gold-deep/90 sm:text-base"
               dir="ltr"
               lang="en"
             >
@@ -298,86 +297,55 @@ export function Layout() {
             target="_blank"
             rel="noopener noreferrer"
             dir="ltr"
-            className={[
-              'inline-flex items-center gap-1.5 font-medium text-ink-muted transition hover:text-gold-deep',
-              compactFooter ? 'text-xs' : 'gap-2 text-sm',
-            ].join(' ')}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-ink transition hover:text-gold-deep"
           >
-            <InstagramIcon
-              className={compactFooter ? 'size-3.5 shrink-0 sm:size-4' : 'size-4 shrink-0 sm:size-[1.125rem]'}
-              aria-hidden
-            />
+            <InstagramIcon className="size-4 shrink-0 sm:size-[1.125rem]" aria-hidden />
             <span dir="ltr">{site.instagramHandle}</span>
           </a>
 
           <nav
-            className={[
-              'flex flex-wrap items-center justify-center gap-y-1 md:justify-end',
-              compactFooter ? 'gap-x-3 text-xs' : 'gap-x-4 text-sm',
-            ].join(' ')}
+            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm md:justify-end"
             aria-label="מסמכים משפטיים"
           >
             <Link
               to="/terms"
-              className="font-medium text-ink underline-offset-4 transition hover:text-gold-deep hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
+              className="font-semibold text-ink underline-offset-4 transition hover:text-gold-deep hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
             >
               תנאים
             </Link>
             <Link
               to="/privacy-policy"
-              className="font-medium text-ink underline-offset-4 transition hover:text-gold-deep hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
+              className="font-semibold text-ink underline-offset-4 transition hover:text-gold-deep hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
             >
               פרטיות
             </Link>
             <Link
               to="/allergens"
-              className="font-medium text-ink underline-offset-4 transition hover:text-gold-deep hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
+              className="font-semibold text-ink underline-offset-4 transition hover:text-gold-deep hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-deep"
             >
               אלרגנים
             </Link>
           </nav>
 
-          {compactFooter ? (
-            <div
-              className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px] leading-tight text-ink-muted sm:text-[11px] md:justify-end"
-              dir="ltr"
-            >
-              <span className="tabular-nums">© {new Date().getFullYear()}</span>
-              <span className="text-ink/25" aria-hidden>
-                ·
-              </span>
+          <div className="flex flex-col items-center gap-2 md:items-end">
+            <p className="m-0 text-xs font-medium text-ink" dir="ltr">
+              © {new Date().getFullYear()}
+            </p>
+            <div className="flex items-center justify-center gap-2 md:justify-end">
               <img
                 src={site.devLogoMark}
                 alt="THE WITCH, Web & App Development"
                 width={256}
                 height={256}
-                className="h-4 w-auto shrink-0 rounded object-contain opacity-85 sm:h-[1.125rem]"
+                className="h-5 w-auto shrink-0 rounded object-contain sm:h-6"
                 loading="lazy"
                 decoding="async"
               />
-              <span className="max-w-[9.5rem] sm:max-w-none">{site.devCreditSubtitle}</span>
+              <span className="max-w-[11rem] text-xs font-medium leading-snug text-ink md:text-end">
+                {site.devCreditHeading} · {site.devCreditSubtitle}
+              </span>
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 md:items-end">
-              <p className="m-0 text-xs text-ink-muted/80" dir="ltr">
-                © {new Date().getFullYear()}
-              </p>
-              <div className="flex items-center justify-center gap-2 md:justify-end">
-                <img
-                  src={site.devLogoMark}
-                  alt="THE WITCH, Web & App Development"
-                  width={256}
-                  height={256}
-                  className="h-5 w-auto shrink-0 rounded object-contain opacity-90 sm:h-6"
-                  loading="lazy"
-                  decoding="async"
-                />
-                <span className="max-w-[11rem] text-xs leading-snug text-ink-muted md:text-end">
-                  {site.devCreditHeading} · {site.devCreditSubtitle}
-                </span>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </footer>
       ) : null}

@@ -3,6 +3,8 @@
 :root {
   /** גובה שורת ה-header, ליישר עם .header (מובייל ~py-3 + שתי שורות מיתוג) */
   --header-h: 80px;
+  /** סרגל קטגוריות דביק בדף תפריט מתוקים — ל־scroll-margin ולחישובי spy */
+  --order-subnav-h: 3.25rem;
 }
 
 @theme {
@@ -61,12 +63,34 @@
   }
 }
 
+/* הסתרת scrollbar — גלילה נשמרת */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge legacy */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome / Safari */
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
+  }
+}
+
+/** כפתור + בקטלוג — ripple קצר בלחיצה */
+@keyframes plus-ripple {
+  0% {
+    transform: scale(0.2);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
   }
 }
 
@@ -144,6 +168,16 @@
     box-sizing: border-box;
   }
 
+  /** עוגיות / קראמבל / קראמבל ענקית — פחות padding כדי שהתמונה תמלא את הלבן */
+  .product-card.product-card--full-cookie > div:first-child > div {
+    padding: 4px !important;
+  }
+
+  /** קראמבל ליחידה — עיגול גדול בתמונה; יותר margin כדי שלא ייחתך בקצוות */
+  .product-card.product-card--full-cookie.product-card--crumble-single > div:first-child > div {
+    padding: 10px !important;
+  }
+
   .product-card-media {
     display: block;
     width: auto !important;
@@ -161,6 +195,14 @@
       align-items: stretch !important;
       justify-content: stretch !important;
       padding: 6px !important;
+    }
+
+    .product-card.product-card--full-cookie > div:first-child > div {
+      padding: 3px !important;
+    }
+
+    .product-card.product-card--full-cookie.product-card--crumble-single > div:first-child > div {
+      padding: 8px !important;
     }
 
     .product-card .product-card-media {
