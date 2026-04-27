@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { startTransition, useEffect, useState, type CSSProperties } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { defaultWaMessage, site, siteImages, whatsappLink } from '../siteConfig'
@@ -89,11 +89,15 @@ export function Layout() {
 
   useEffect(() => {
     if (pathname !== '/') {
-      setShowIntroVideo(false)
+      startTransition(() => {
+        setShowIntroVideo((open) => (open ? false : open))
+      })
       return
     }
-    const hasSeen = sessionStorage.getItem('seenIntro')
-    if (!hasSeen) setShowIntroVideo(true)
+    if (sessionStorage.getItem('seenIntro')) return
+    startTransition(() => {
+      setShowIntroVideo((open) => (open ? open : true))
+    })
   }, [pathname])
 
   /** GA4 — צפיית עמוד בכל מעבר ניווט (SPA); אם gtag לא נטען (אין מזהה / חסימה) מתעלמים */

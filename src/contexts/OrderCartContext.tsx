@@ -242,7 +242,11 @@ function initOrderRoot(seed: CartRootState): CartRootState {
 export function OrderCartProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialRoot, initOrderRoot)
   const stateRef = useRef(state)
-  stateRef.current = state
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
   const setQty = useCallback(
     (productId: number, nextQty: number) => {
       const action = { type: 'SET_QTY' as const, productId, nextQty }

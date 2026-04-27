@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import { site } from '../siteConfig'
 
 /** במובייל: סרטון אחד מלא (ללא פיצול) — מונע חוסר יישור וניגון כפול ב־iOS */
@@ -214,12 +214,16 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
 
   useEffect(() => {
     if (!split) {
-      setSplitBlurRampPx(0)
+      startTransition(() => {
+        setSplitBlurRampPx((px) => (px !== 0 ? 0 : px))
+      })
       return
     }
     const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     if (reduce) {
-      setSplitBlurRampPx(INTRO_SPLIT_BLUR_PX)
+      startTransition(() => {
+        setSplitBlurRampPx((px) => (px !== INTRO_SPLIT_BLUR_PX ? INTRO_SPLIT_BLUR_PX : px))
+      })
       return
     }
     const start = performance.now()

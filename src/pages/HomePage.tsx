@@ -275,7 +275,7 @@ export default function HomePage() {
               },
               {
                 step: '3',
-                title: 'פתרון',
+                title: 'אישור ההזמנה',
                 desc: 'מקבלים אישור והזמנה מסודרת, נשאר רק לחכות לקינוח.',
               },
             ].map((s) => (

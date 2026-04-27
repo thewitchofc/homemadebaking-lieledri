@@ -1,0 +1,16 @@
+# Render Blueprint (SPA) — React Router: כל נתיב → index.html
+#
+# בלוח Render ודא/י:
+# - Publish directory = dist
+# - Build command = npm run build (או לפי מה שמוגדר אצלך)
+#
+services:
+  - type: web
+    name: homade-baking-liel-edri
+    runtime: static
+    buildCommand: npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
