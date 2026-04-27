@@ -48,9 +48,13 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
   const introSplitWallMsRef = useRef<number | null>(null)
   const introRvfcHandleRef = useRef<number>(-1)
   const introSyncRafRef = useRef<number | null>(null)
+  /** מניעת עדכוני state אחרי unmount (rAF / RVFC / timeupdate) */
+  const isAliveRef = useRef(true)
 
   useEffect(() => {
+    isAliveRef.current = true
     return () => {
+      isAliveRef.current = false
       if (introFadeTimer.current) clearTimeout(introFadeTimer.current)
       if (logoPlayTimerRef.current) clearTimeout(logoPlayTimerRef.current)
       if (logoDurationFadeRef.current) clearTimeout(logoDurationFadeRef.current)
@@ -83,6 +87,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
 
     const flushIntroEndBlur = () => {
       introBlurRaf.current = null
+      if (!isAliveRef.current) return
       const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
       if (reduceMotion) {
         setIntroEndBlurPx(0)
@@ -101,6 +106,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
           px = smoothstep01(u) * INTRO_END_BLUR_MAX_PX
         }
       }
+      if (!isAliveRef.current) return
       setIntroEndBlurPx(px)
     }
 
@@ -111,6 +117,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
 
     const curtainSec = INTRO_CURTAIN_MS / 1000
     const maybeStartCurtainWhilePlaying = () => {
+      if (!isAliveRef.current) return
       if (introSplitStartedRef.current) return
       const d = L.duration
       if (!Number.isFinite(d) || d <= 0) return
@@ -129,6 +136,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     }
 
     const runIntroFrameSync = () => {
+      if (!isAliveRef.current) return
       const L2 = videoLeftRef.current
       const R2 = videoRightRef.current
       if (!L2 || L2.paused || L2.ended) return
@@ -151,6 +159,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     }
 
     const onMasterVideoFrame: VideoFrameRequestCallback = () => {
+      if (!isAliveRef.current) return
       const L2 = videoLeftRef.current
       if (!L2 || L2.paused || L2.ended) return
       runIntroFrameSync()
@@ -166,6 +175,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     }
 
     const rafSyncLoop = () => {
+      if (!isAliveRef.current) return
       introSyncRafRef.current = null
       const L2 = videoLeftRef.current
       if (!L2 || L2.paused || L2.ended) return
@@ -195,6 +205,7 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
     }
 
     const onTimeupdateBackup = () => {
+      if (!isAliveRef.current) return
       if (introRvfcHandleRef.current !== -1 || introSyncRafRef.current != null) return
       runIntroFrameSync()
     }
@@ -226,15 +237,27 @@ export function IntroVideoComponent({ onDone }: { onDone: () => void }) {
       })
       return
     }
+
+    let rafId = 0
+    let cancelled = false
     const start = performance.now()
-    let raf = 0
-    const tick = (now: number) => {
+
+    const tick: FrameRequestCallback = (now) => {
+      if (cancelled) return
+      if (!isAliveRef.current) return
       const t = Math.min(1, (now - start) / INTRO_SPLIT_BLUR_RAMP_MS)
       setSplitBlurRampPx(INTRO_SPLIT_BLUR_PX * smoothstep01(t))
-      if (t < 1) raf = requestAnimationFrame(tick)
+      if (t < 1) {
+        rafId = requestAnimationFrame(tick)
+      }
     }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+
+    rafId = requestAnimationFrame(tick)
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(rafId)
+    }
   }, [split])
 
   const videoProps = {
